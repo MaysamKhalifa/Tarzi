@@ -1,0 +1,147 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { Package, MessageCircle, Clock, CheckCircle, Truck, XCircle, Scissors, RefreshCw, Sparkles } from 'lucide-react'
+import BottomNav from '@/components/layout/BottomNav'
+import PageHeader from '@/components/layout/PageHeader'
+import { createClient } from '@/lib/supabase/client'
+import { useApp } from '@/lib/context/AppContext'
+import type { Order } from '@/types/database'
+
+type Tab = 'in_progress' | 'done'
+
+const STATUS_CONFIG = {
+  pending: { label: 'Pending', color: '#f57c00', bg: '#fff3e0', icon: Clock },
+  confirmed: { label: 'Confirmed', color: '#1565c0', bg: '#e3f2fd', icon: CheckCircle },
+  in_progress: { label: 'In Progress', color: '#7b1fa2', bg: '#f3e5f5', icon: Scissors },
+  ready: { label: 'Ready', color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
+  delivered: { label: 'Delivered', color: '#2e7d32', bg: '#e8f5e9', icon: Truck },
+  cancelled: { label: 'Cancelled', color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
+}
+
+const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling: RefreshCw }
+
+export default function OrdersPage() {
+  const { user } = useApp()
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<Tab>('in_progress')
+
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    supabase.from('orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setOrders(data || [])
+        setLoading(false)
+      })
+  }, [user])
+
+  const doneStatuses = ['delivered', 'cancelled']
+  const inProgress = orders.filter(o => !doneStatuses.includes(o.status))
+  const done = orders.filter(o => doneStatuses.includes(o.status))
+  const displayed = tab === 'in_progress' ? inProgress : done
+
+  return (
+    <div className="min-h-dvh bg-white pb-24">
+      {/* Pink header */}
+      <div className="px-5 pt-12 pb-5"
+        style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 12 }}>My Orders</h1>
+        <div className="flex gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.2)' }}>
+          {([['in_progress', 'In Progress'], ['done', 'Done']] as [Tab, string][]).map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)}
+              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: tab === key ? 'white' : 'transparent',
+                color: tab === key ? '#e91e8c' : 'rgba(255,255,255,0.8)',
+              }}>
+              {label} {key === 'in_progress' ? `(${inProgress.length})` : `(${done.length})`}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-5 py-4">
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <div className="w-10 h-10 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
+          </div>
+        ) : displayed.length === 0 ? (
+          <div className="text-center py-16">
+            <Package size={48} color="#e8e8e8" className="mx-auto mb-4" />
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
+              {tab === 'in_progress' ? 'No active orders' : 'No completed orders'}
+            </p>
+            <p style={{ color: '#9e9e9e', fontSize: 13, marginBottom: 20 }}>
+              {tab === 'in_progress' ? 'Book a tailor to get started' : 'Completed orders will appear here'}
+            </p>
+            {tab === 'in_progress' && (
+              <Link href="/home"
+                className="px-6 py-3 rounded-full text-white font-bold text-sm inline-block"
+                style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+                Book Now
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {displayed.map(order => {
+              const StatusCfg = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
+              const StatusIcon = StatusCfg.icon
+              const svc = order.service_type as keyof typeof SERVICE_ICONS
+              const ServiceIcon = SERVICE_ICONS[svc] || Scissors
+
+              return (
+                <div key={order.id} className="p-4 rounded-2xl"
+                  style={{ background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.07)' }}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        style={{ background: '#fce4ec' }}>
+                        <ServiceIcon size={18} color="#e91e8c" />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>{order.garment_type}</p>
+                        <p style={{ fontSize: 11, color: '#9e9e9e' }}>{order.order_number}</p>
+                      </div>
+                    </div>
+                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-xl"
+                      style={{ background: StatusCfg.bg, fontSize: 11, fontWeight: 600, color: StatusCfg.color }}>
+                      <StatusIcon size={11} />
+                      {StatusCfg.label}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 12, color: '#555' }} className="flex flex-col gap-1">
+                    <span>🧵 {order.service_type.replace('_', ' ')} • {order.tailor_name}</span>
+                    {order.pickup_date && (
+                      <span>📅 Pickup: {new Date(order.pickup_date).toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: 'numeric' })} at {order.pickup_time}</span>
+                    )}
+                    {order.price && <span>💰 AED {order.price}</span>}
+                  </div>
+
+                  <div className="flex gap-2 mt-3">
+                    <Link href={`/chat/${order.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold"
+                      style={{ background: '#fce4ec', color: '#e91e8c' }}>
+                      <MessageCircle size={14} /> Chat
+                    </Link>
+                    <Link href={`/delivery?orderId=${order.id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold"
+                      style={{ background: '#f9f9f9', color: '#555' }}>
+                      <Truck size={14} /> Track
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      <BottomNav />
+    </div>
+  )
+}

@@ -1,0 +1,249 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { ShoppingBag, Trash2, ChevronRight, Calendar, Clock, MapPin, Scissors, RefreshCw, Sparkles, CheckCircle } from 'lucide-react'
+import BottomNav from '@/components/layout/BottomNav'
+import PageHeader from '@/components/layout/PageHeader'
+import { useApp } from '@/lib/context/AppContext'
+import { createClient } from '@/lib/supabase/client'
+
+const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling: RefreshCw }
+const SERVICE_COLORS = { alterations: '#e91e8c', from_scratch: '#f57c00', upcycling: '#7b1fa2' }
+const SERVICE_BG = { alterations: '#fce4ec', from_scratch: '#fff3e0', upcycling: '#f3e5f5' }
+
+const TIME_SLOTS = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:00 PM', '6:00 PM']
+
+export default function BagPage() {
+  const router = useRouter()
+  const { cart, removeFromCart, clearCart, cartTotal, user } = useApp()
+  const [pickupDate, setPickupDate] = useState('')
+  const [pickupTime, setPickupTime] = useState('')
+  const [address, setAddress] = useState('')
+  const [placing, setPlacing] = useState(false)
+  const [ordered, setOrdered] = useState(false)
+
+  const handleCheckout = async () => {
+    if (!pickupDate || !pickupTime || !address || cart.length === 0) return
+    if (!user) { router.push('/login'); return }
+    setPlacing(true)
+    const supabase = createClient()
+
+    for (const item of cart) {
+      await supabase.from('orders').insert({
+        user_id: user.id,
+        tailor_id: item.tailorId || null,
+        tailor_name: item.tailorName,
+        service_type: item.serviceType,
+        garment_type: item.garmentType,
+        gender: item.gender,
+        comments: item.comments || null,
+        measurement_id: item.measurementId || null,
+        image_urls: item.imageUrls,
+        price: item.price,
+        pickup_date: pickupDate,
+        pickup_time: pickupTime,
+        pickup_address: address,
+        status: 'pending',
+        order_number: `ORD-${Date.now()}`,
+      })
+    }
+
+    clearCart()
+    setPlacing(false)
+    setOrdered(true)
+  }
+
+  const today = new Date()
+  const dates = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(today.getDate() + i + 1)
+    return d
+  })
+
+  if (ordered) {
+    return (
+      <div className="min-h-dvh bg-white flex flex-col items-center justify-center px-6 text-center pb-24">
+        <div className="w-24 h-24 rounded-full flex items-center justify-center mb-5"
+          style={{ background: '#e8f5e9' }}>
+          <CheckCircle size={48} color="#4caf50" />
+        </div>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: '#1a1a1a', marginBottom: 8 }}>Order Placed!</h2>
+        <p style={{ color: '#9e9e9e', fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
+          Your order has been placed successfully. The tailor will confirm shortly and arrange pickup.
+        </p>
+        <Link href="/orders"
+          className="w-full py-4 rounded-full text-white font-bold text-base text-center block"
+          style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+          View My Orders
+        </Link>
+        <Link href="/home" style={{ color: '#9e9e9e', fontSize: 14, marginTop: 16 }}>
+          Continue Shopping
+        </Link>
+        <BottomNav />
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-dvh bg-white pb-32">
+      <PageHeader title="My Bag" subtitle={`${cart.length} item${cart.length !== 1 ? 's' : ''}`} showBack={false} />
+
+      {cart.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <ShoppingBag size={56} color="#e8e8e8" className="mb-4" />
+          <p style={{ fontSize: 18, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>Your bag is empty</p>
+          <p style={{ color: '#9e9e9e', fontSize: 14, marginBottom: 24 }}>Add services to get started</p>
+          <Link href="/home"
+            className="px-8 py-3 rounded-full text-white font-bold text-sm"
+            style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+            Browse Services
+          </Link>
+        </div>
+      ) : (
+        <div className="px-5 flex flex-col gap-5 py-4">
+          {/* Cart items */}
+          <div className="flex flex-col gap-3">
+            {cart.map((item, index) => {
+              const svc = item.serviceType as keyof typeof SERVICE_ICONS
+              const Icon = SERVICE_ICONS[svc] || Scissors
+              return (
+                <div key={index} className="flex gap-3 p-4 rounded-2xl"
+                  style={{ background: 'white', boxShadow: '0 2px 10px rgba(0,0,0,0.07)' }}>
+                  <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: SERVICE_BG[svc] || '#fce4ec' }}>
+                    <Icon size={22} color={SERVICE_COLORS[svc] || '#e91e8c'} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>{item.garmentType}</p>
+                        <p style={{ fontSize: 12, color: '#9e9e9e', textTransform: 'capitalize' }}>
+                          {item.serviceType.replace('_', ' ')} • {item.tailorName}
+                        </p>
+                      </div>
+                      <p style={{ fontSize: 15, fontWeight: 800, color: '#e91e8c' }}>AED {item.price}</p>
+                    </div>
+                    {item.comments && (
+                      <p style={{ fontSize: 11, color: '#bbb', marginTop: 4 }} className="line-clamp-1">{item.comments}</p>
+                    )}
+                  </div>
+                  <button onClick={() => removeFromCart(index)} className="self-start ml-1">
+                    <Trash2 size={16} color="#f44336" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Order summary */}
+          <div className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>Order Summary</p>
+            {cart.map((item, i) => (
+              <div key={i} className="flex justify-between mb-2">
+                <span style={{ fontSize: 13, color: '#555' }}>{item.garmentType} ({item.serviceType.replace('_', ' ')})</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>AED {item.price}</span>
+              </div>
+            ))}
+            <div style={{ borderTop: '1px solid #e8e8e8', marginTop: 10, paddingTop: 10 }} className="flex justify-between">
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>Total</span>
+              <span style={{ fontSize: 17, fontWeight: 800, color: '#e91e8c' }}>AED {cartTotal.toFixed(2)}</span>
+            </div>
+            <p style={{ fontSize: 11, color: '#bbb', marginTop: 6 }}>Final price confirmed by tailor • Delivery decided by tailor</p>
+          </div>
+
+          {/* Pickup section */}
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>
+              <MapPin size={15} className="inline mr-1" style={{ color: '#e91e8c' }} />
+              Pickup Details
+            </p>
+
+            {/* Pickup date */}
+            <div className="mb-4">
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
+                <Calendar size={12} className="inline mr-1" /> Pickup Date *
+              </label>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {dates.map(d => {
+                  const val = d.toISOString().split('T')[0]
+                  const label = d.toLocaleDateString('en-AE', { weekday: 'short' })
+                  const day = d.getDate()
+                  const month = d.toLocaleDateString('en-AE', { month: 'short' })
+                  return (
+                    <button key={val} onClick={() => setPickupDate(val)}
+                      className="flex flex-col items-center p-2.5 rounded-xl flex-shrink-0 transition-all"
+                      style={{
+                        minWidth: 54,
+                        border: `2px solid ${pickupDate === val ? '#e91e8c' : '#e8e8e8'}`,
+                        background: pickupDate === val ? '#fce4ec' : '#fafafa',
+                      }}>
+                      <span style={{ fontSize: 10, color: pickupDate === val ? '#e91e8c' : '#9e9e9e', fontWeight: 600 }}>{label}</span>
+                      <span style={{ fontSize: 17, fontWeight: 800, color: pickupDate === val ? '#e91e8c' : '#1a1a1a' }}>{day}</span>
+                      <span style={{ fontSize: 9, color: '#bbb' }}>{month}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Pickup time */}
+            <div className="mb-4">
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
+                <Clock size={12} className="inline mr-1" /> Pickup Time *
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {TIME_SLOTS.map(t => (
+                  <button key={t} onClick={() => setPickupTime(t)}
+                    className="py-2 rounded-xl text-xs font-semibold transition-all"
+                    style={{
+                      border: `2px solid ${pickupTime === t ? '#e91e8c' : '#e8e8e8'}`,
+                      background: pickupTime === t ? '#fce4ec' : '#fafafa',
+                      color: pickupTime === t ? '#e91e8c' : '#555',
+                    }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Address */}
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
+                Pickup Address *
+              </label>
+              <textarea value={address} onChange={e => setAddress(e.target.value)}
+                placeholder="Villa 12, Street 5, Mirdif, Dubai"
+                rows={2}
+                className="w-full px-4 py-3 rounded-xl outline-none"
+                style={{ border: '1.5px solid #e8e8e8', background: '#fafafa', fontSize: 14, resize: 'none' }}
+                onFocus={e => (e.target.style.borderColor = '#e91e8c')}
+                onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout button */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 py-3 bg-white"
+          style={{ borderTop: '1px solid #f0f0f0' }}>
+          <button onClick={handleCheckout}
+            disabled={placing || !pickupDate || !pickupTime || !address}
+            className="w-full py-4 rounded-full text-white font-bold text-base flex items-center justify-center gap-2"
+            style={{
+              background: (!pickupDate || !pickupTime || !address) ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
+              boxShadow: '0 4px 15px rgba(233, 30, 140, 0.3)',
+            }}>
+            {placing ? 'Placing order...' : `Check Out • AED ${cartTotal.toFixed(2)}`}
+            {!placing && <ChevronRight size={18} />}
+          </button>
+        </div>
+      )}
+
+      <BottomNav />
+    </div>
+  )
+}

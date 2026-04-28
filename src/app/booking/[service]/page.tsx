@@ -1,0 +1,291 @@
+'use client'
+
+import { use, useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Upload, X, ChevronDown, Scissors, RefreshCw, Sparkles, Check } from 'lucide-react'
+import PageHeader from '@/components/layout/PageHeader'
+import { MALE_GARMENTS, FEMALE_GARMENTS, UPCYCLING_ITEMS } from '@/lib/data/garments'
+import { SAMPLE_TAILORS } from '@/lib/data/tailors'
+import { createClient } from '@/lib/supabase/client'
+import { useApp } from '@/lib/context/AppContext'
+import type { Measurement } from '@/types/database'
+
+type Gender = 'male' | 'female'
+type ServiceType = 'alterations' | 'from_scratch' | 'upcycling'
+
+const SERVICE_META = {
+  alterations: { label: 'Alterations', icon: Scissors, color: '#e91e8c', bg: '#fce4ec', price: 45 },
+  from_scratch: { label: 'From Scratch', icon: Sparkles, color: '#f57c00', bg: '#fff3e0', price: 200 },
+  upcycling: { label: 'Upcycling', icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', price: 80 },
+}
+
+export default function BookingPage({ params }: { params: Promise<{ service: string }> }) {
+  const { service } = use(params)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { user, addToCart } = useApp()
+
+  const svcKey = (service as ServiceType) in SERVICE_META ? (service as ServiceType) : 'alterations'
+  const meta = SERVICE_META[svcKey]
+  const Icon = meta.icon
+
+  const preselectedGender = (searchParams.get('gender') as Gender) || 'female'
+  const preselectedTailor = searchParams.get('tailorId') || ''
+  const preselectedTailorName = searchParams.get('tailorName') || ''
+
+  const [gender, setGender] = useState<Gender>(preselectedGender)
+  const [garment, setGarment] = useState('')
+  const [autoFill, setAutoFill] = useState<'yes' | 'no'>('no')
+  const [selectedMeasurement, setSelectedMeasurement] = useState('')
+  const [comments, setComments] = useState('')
+  const [images, setImages] = useState<File[]>([])
+  const [imageUrls, setImageUrls] = useState<string[]>([])
+  const [measurements, setMeasurements] = useState<Measurement[]>([])
+  const [selectedTailor, setSelectedTailor] = useState(preselectedTailor)
+  const [uploading, setUploading] = useState(false)
+  const [added, setAdded] = useState(false)
+
+  const garmentList = svcKey === 'upcycling'
+    ? UPCYCLING_ITEMS
+    : gender === 'male' ? MALE_GARMENTS : FEMALE_GARMENTS
+
+  useEffect(() => {
+    if (!user || autoFill !== 'yes') return
+    const supabase = createClient()
+    supabase.from('measurements').select('*').eq('user_id', user.id).eq('gender', gender)
+      .order('is_default', { ascending: false })
+      .then(({ data }) => {
+        const list = data || []
+        setMeasurements(list)
+        if (list.length > 0) setSelectedMeasurement(list[0].id)
+        else router.push('/measurements')
+      })
+  }, [autoFill, user, gender])
+
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files) return
+    const newFiles = Array.from(files).slice(0, 5 - images.length)
+    setImages(prev => [...prev, ...newFiles])
+
+    // Upload to Supabase Storage
+    if (!user) return
+    setUploading(true)
+    const supabase = createClient()
+    const uploaded: string[] = []
+    for (const file of newFiles) {
+      const ext = file.name.split('.').pop()
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { data } = await supabase.storage.from('garment-images').upload(path, file, { upsert: true })
+      if (data) {
+        const { data: urlData } = supabase.storage.from('garment-images').getPublicUrl(data.path)
+        uploaded.push(urlData.publicUrl)
+      }
+    }
+    setImageUrls(prev => [...prev, ...uploaded])
+    setUploading(false)
+  }
+
+  const handleAddToBag = () => {
+    if (!garment && svcKey !== 'upcycling') return
+    const tailor = SAMPLE_TAILORS.find(t => t.id === selectedTailor)
+    addToCart({
+      tailorId: selectedTailor,
+      tailorName: tailor?.name || preselectedTailorName || 'Any Available Tailor',
+      serviceType: svcKey,
+      garmentType: garment || 'General',
+      gender,
+      comments,
+      imageUrls,
+      price: meta.price,
+      measurementId: selectedMeasurement || null,
+    })
+    setAdded(true)
+    setTimeout(() => router.push('/bag'), 1000)
+  }
+
+  const inputStyle = {
+    border: '1.5px solid #e8e8e8', background: '#fafafa', borderRadius: 12,
+    padding: '12px 14px', fontSize: 15, width: '100%', outline: 'none',
+  }
+
+  return (
+    <div className="min-h-dvh bg-white pb-8">
+      <PageHeader title={meta.label} subtitle={`Book a ${meta.label.toLowerCase()} service`} />
+
+      <div className="px-5 py-4 flex flex-col gap-5">
+        {/* Service badge */}
+        <div className="flex items-center gap-3 p-4 rounded-2xl"
+          style={{ background: meta.bg }}>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white">
+            <Icon size={24} color={meta.color} />
+          </div>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>{meta.label}</p>
+            <p style={{ fontSize: 13, color: '#757575' }}>Starting from AED {meta.price}</p>
+          </div>
+        </div>
+
+        {/* Gender (not for upcycling) */}
+        {svcKey !== 'upcycling' && (
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>Gender</label>
+            <div className="flex gap-3">
+              {(['female', 'male'] as Gender[]).map(g => (
+                <button key={g} onClick={() => { setGender(g); setGarment('') }}
+                  className="flex-1 py-3 rounded-xl font-semibold text-sm capitalize transition-all"
+                  style={{
+                    border: `2px solid ${gender === g ? '#e91e8c' : '#e8e8e8'}`,
+                    background: gender === g ? '#fce4ec' : '#fafafa',
+                    color: gender === g ? '#e91e8c' : '#9e9e9e',
+                  }}>
+                  {g === 'female' ? '👗 Female' : '👔 Male'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Garment type */}
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
+            {svcKey === 'upcycling' ? 'Garment to Upcycle' : svcKey === 'from_scratch' ? 'Outfit Style' : 'Garment Type'} *
+          </label>
+          <div className="relative">
+            <select value={garment} onChange={e => setGarment(e.target.value)}
+              style={{ ...inputStyle, paddingRight: 40, appearance: 'none', cursor: 'pointer' }}>
+              <option value="">Select garment...</option>
+              {garmentList.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" color="#9e9e9e" />
+          </div>
+        </div>
+
+        {/* Tailor selection */}
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
+            Select Tailor (optional)
+          </label>
+          <div className="relative">
+            <select value={selectedTailor} onChange={e => setSelectedTailor(e.target.value)}
+              style={{ ...inputStyle, paddingRight: 40, appearance: 'none', cursor: 'pointer' }}>
+              <option value="">Any available tailor</option>
+              {SAMPLE_TAILORS.filter(t => t.is_available).map(t => (
+                <option key={t.id} value={t.id}>{t.name} – {t.area} ({t.distance_km < 1 ? `${t.distance_km * 1000}m` : `${t.distance_km}km`})</option>
+              ))}
+            </select>
+            <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" color="#9e9e9e" />
+          </div>
+        </div>
+
+        {/* Auto-fill measurements */}
+        {svcKey !== 'upcycling' && (
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
+              Auto-fill from Measurements?
+            </label>
+            <div className="flex gap-3">
+              {(['yes', 'no'] as const).map(v => (
+                <button key={v} onClick={() => setAutoFill(v)}
+                  className="flex-1 py-3 rounded-xl font-semibold text-sm capitalize transition-all"
+                  style={{
+                    border: `2px solid ${autoFill === v ? '#e91e8c' : '#e8e8e8'}`,
+                    background: autoFill === v ? '#fce4ec' : '#fafafa',
+                    color: autoFill === v ? '#e91e8c' : '#9e9e9e',
+                  }}>
+                  {v === 'yes' ? '✓ Yes' : '✗ No'}
+                </button>
+              ))}
+            </div>
+
+            {autoFill === 'yes' && measurements.length > 0 && (
+              <div className="mt-3">
+                <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
+                  Choose measurement profile
+                </label>
+                <div className="relative">
+                  <select value={selectedMeasurement} onChange={e => setSelectedMeasurement(e.target.value)}
+                    style={{ ...inputStyle, paddingRight: 40, appearance: 'none' }}>
+                    {measurements.map(m => (
+                      <option key={m.id} value={m.id}>{m.name} ({m.gender})</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" color="#9e9e9e" />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Image upload */}
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
+            Attach Images (optional, max 5)
+          </label>
+          <label className="flex flex-col items-center justify-center gap-2 p-5 rounded-2xl cursor-pointer transition-all"
+            style={{ border: '2px dashed #e8e8e8', background: '#fafafa' }}>
+            <input type="file" multiple accept="image/*" className="hidden"
+              onChange={e => handleImageUpload(e.target.files)} />
+            <Upload size={22} color="#9e9e9e" />
+            <span style={{ fontSize: 13, color: '#9e9e9e' }}>
+              {uploading ? 'Uploading...' : 'Tap to upload photos'}
+            </span>
+            <span style={{ fontSize: 11, color: '#bbb' }}>JPG, PNG up to 10MB</span>
+          </label>
+
+          {images.length > 0 && (
+            <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+              {images.map((img, i) => (
+                <div key={i} className="relative flex-shrink-0">
+                  <img src={URL.createObjectURL(img)} alt=""
+                    className="w-16 h-16 rounded-xl object-cover" />
+                  <button onClick={() => {
+                    setImages(p => p.filter((_, j) => j !== i))
+                    setImageUrls(p => p.filter((_, j) => j !== i))
+                  }}
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+                    <X size={10} color="white" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Comments */}
+        <div>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
+            Comments (optional)
+          </label>
+          <textarea value={comments} onChange={e => setComments(e.target.value)}
+            placeholder="Describe your requirements, fabric preferences, style details..."
+            rows={3}
+            style={{ ...inputStyle, resize: 'none' as const }}
+            onFocus={e => (e.target.style.borderColor = '#e91e8c')}
+            onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
+          />
+        </div>
+
+        {/* Price estimate */}
+        <div className="flex items-center justify-between p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
+          <div>
+            <p style={{ fontSize: 13, color: '#9e9e9e' }}>Estimated price</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: '#e91e8c' }}>AED {meta.price}</p>
+          </div>
+          <p style={{ fontSize: 11, color: '#bbb', textAlign: 'right', maxWidth: 120, lineHeight: 1.4 }}>
+            Final price decided by tailor after review
+          </p>
+        </div>
+
+        <button onClick={handleAddToBag}
+          disabled={(!garment && svcKey !== 'upcycling') || added}
+          className="w-full py-4 rounded-full text-white font-bold text-base flex items-center justify-center gap-2"
+          style={{
+            background: added ? '#4caf50' : (!garment && svcKey !== 'upcycling') ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
+            boxShadow: '0 4px 15px rgba(233, 30, 140, 0.3)',
+          }}>
+          {added ? (<><Check size={18} /> Added to Bag!</>) : 'Add to Bag'}
+        </button>
+      </div>
+    </div>
+  )
+}
