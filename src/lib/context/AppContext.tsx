@@ -36,9 +36,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
 
   const fetchProfile = async (userId: string) => {
+    const supabase = createClient()
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -48,6 +48,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    const supabase = createClient()
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user)
       if (user) fetchProfile(user.id)
