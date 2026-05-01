@@ -23,9 +23,14 @@ export default function ProfilePage() {
   const [activeModal, setActiveModal] = useState<ModalType>(null)
 
   const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.replace('/login')
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch {
+      // ignore errors — still redirect
+    }
+    // Hard redirect to clear all client-side state
+    window.location.href = '/login'
   }
 
   const handleSaveName = async () => {
