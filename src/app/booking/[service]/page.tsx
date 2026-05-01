@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useState, useEffect } from 'react'
+import { use, useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Upload, X, ChevronDown, Scissors, RefreshCw, Sparkles, Check } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
@@ -19,13 +19,12 @@ const SERVICE_META = {
   upcycling: { label: 'Upcycling', icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', price: 80 },
 }
 
-export default function BookingPage({ params }: { params: Promise<{ service: string }> }) {
-  const { service } = use(params)
+function BookingContent({ serviceParam }: { serviceParam: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, addToCart } = useApp()
 
-  const svcKey = (service as ServiceType) in SERVICE_META ? (service as ServiceType) : 'alterations'
+  const svcKey = (serviceParam as ServiceType) in SERVICE_META ? (serviceParam as ServiceType) : 'alterations'
   const meta = SERVICE_META[svcKey]
   const Icon = meta.icon
 
@@ -49,32 +48,41 @@ export default function BookingPage({ params }: { params: Promise<{ service: str
     ? UPCYCLING_ITEMS
     : gender === 'male' ? MALE_GARMENTS : FEMALE_GARMENTS
 
+  // Auto-fill: fetch measurements; redirect if none exist
   useEffect(() => {
-    if (!user || autoFill !== 'yes') return
+    if (!user || autoFill !== 'yes' || svcKey === 'upcycling') return
     const supabase = createClient()
-    supabase.from('measurements').select('*').eq('user_id', user.id).eq('gender', gender)
+    supabase
+      .from('measurements')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('gender', gender)
       .order('is_default', { ascending: false })
       .then(({ data }) => {
         const list = data || []
         setMeasurements(list)
-        if (list.length > 0) setSelectedMeasurement(list[0].id)
-        else router.push('/measurements')
+        if (list.length === 0) {
+          // No measurements saved — redirect to measurements page
+          router.push('/measurements')
+        } else {
+          const defaultOne = list.find(m => m.is_default) || list[0]
+          setSelectedMeasurement(defaultOne.id)
+        }
       })
-  }, [autoFill, user, gender])
+  }, [autoFill, user, gender, svcKey, router])
 
   const handleImageUpload = async (files: FileList | null) => {
-    if (!files) return
-    const newFiles = Array.from(files).slice(0, 5 - images.length)
+    if (!files || files.length === 0) return
+    const newFiles = Array.from(files) // no limit on number of files
     setImages(prev => [...prev, ...newFiles])
 
-    // Upload to Supabase Storage
     if (!user) return
     setUploading(true)
     const supabase = createClient()
     const uploaded: string[] = []
     for (const file of newFiles) {
       const ext = file.name.split('.').pop()
-      const path = `${user.id}/${Date.now()}.${ext}`
+      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
       const { data } = await supabase.storage.from('garment-images').upload(path, file, { upsert: true })
       if (data) {
         const { data: urlData } = supabase.storage.from('garment-images').getPublicUrl(data.path)
@@ -83,6 +91,11 @@ export default function BookingPage({ params }: { params: Promise<{ service: str
     }
     setImageUrls(prev => [...prev, ...uploaded])
     setUploading(false)
+  }
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index))
+    setImageUrls(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleAddToBag = () => {
@@ -100,7 +113,7 @@ export default function BookingPage({ params }: { params: Promise<{ service: str
       measurementId: selectedMeasurement || null,
     })
     setAdded(true)
-    setTimeout(() => router.push('/bag'), 1000)
+    setTimeout(() => router.push('/bag'), 900)
   }
 
   const inputStyle = {
@@ -114,8 +127,7 @@ export default function BookingPage({ params }: { params: Promise<{ service: str
 
       <div className="px-5 py-4 flex flex-col gap-5">
         {/* Service badge */}
-        <div className="flex items-center gap-3 p-4 rounded-2xl"
-          style={{ background: meta.bg }}>
+        <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: meta.bg }}>
           <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-white">
             <Icon size={24} color={meta.color} />
           </div>
@@ -170,7 +182,9 @@ export default function BookingPage({ params }: { params: Promise<{ service: str
               style={{ ...inputStyle, paddingRight: 40, appearance: 'none', cursor: 'pointer' }}>
               <option value="">Any available tailor</option>
               {SAMPLE_TAILORS.filter(t => t.is_available).map(t => (
-                <option key={t.id} value={t.id}>{t.name} – {t.area} ({t.distance_km < 1 ? `${t.distance_km * 1000}m` : `${t.distance_km}km`})</option>
+                <option key={t.id} value={t.id}>
+                  {t.name} – {t.area} ({t.distance_km < 1 ? `${t.distance_km * 1000}m` : `${t.distance_km}km`})
+                </option>
               ))}
             </select>
             <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" color="#9e9e9e" />
@@ -216,32 +230,29 @@ export default function BookingPage({ params }: { params: Promise<{ service: str
           </div>
         )}
 
-        {/* Image upload */}
+        {/* Image upload — no limit */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            Attach Images (optional, max 5)
+            Attach Images (optional)
           </label>
           <label className="flex flex-col items-center justify-center gap-2 p-5 rounded-2xl cursor-pointer transition-all"
             style={{ border: '2px dashed #e8e8e8', background: '#fafafa' }}>
             <input type="file" multiple accept="image/*" className="hidden"
               onChange={e => handleImageUpload(e.target.files)} />
             <Upload size={22} color="#9e9e9e" />
-            <span style={{ fontSize: 13, color: '#9e9e9e' }}>
+            <span style={{ fontSize: 13, color: uploading ? '#e91e8c' : '#9e9e9e' }}>
               {uploading ? 'Uploading...' : 'Tap to upload photos'}
             </span>
-            <span style={{ fontSize: 11, color: '#bbb' }}>JPG, PNG up to 10MB</span>
+            <span style={{ fontSize: 11, color: '#bbb' }}>JPG, PNG • No limit</span>
           </label>
 
           {images.length > 0 && (
-            <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+            <div className="flex flex-wrap gap-2 mt-3">
               {images.map((img, i) => (
-                <div key={i} className="relative flex-shrink-0">
+                <div key={i} className="relative">
                   <img src={URL.createObjectURL(img)} alt=""
                     className="w-16 h-16 rounded-xl object-cover" />
-                  <button onClick={() => {
-                    setImages(p => p.filter((_, j) => j !== i))
-                    setImageUrls(p => p.filter((_, j) => j !== i))
-                  }}
+                  <button onClick={() => removeImage(i)}
                     className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
                     <X size={10} color="white" />
                   </button>
@@ -277,15 +288,28 @@ export default function BookingPage({ params }: { params: Promise<{ service: str
         </div>
 
         <button onClick={handleAddToBag}
-          disabled={(!garment && svcKey !== 'upcycling') || added}
+          disabled={(!garment && svcKey !== 'upcycling') || added || uploading}
           className="w-full py-4 rounded-full text-white font-bold text-base flex items-center justify-center gap-2"
           style={{
-            background: added ? '#4caf50' : (!garment && svcKey !== 'upcycling') ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
+            background: added ? '#4caf50' : ((!garment && svcKey !== 'upcycling') || uploading) ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
             boxShadow: '0 4px 15px rgba(233, 30, 140, 0.3)',
           }}>
-          {added ? (<><Check size={18} /> Added to Bag!</>) : 'Add to Bag'}
+          {added ? (<><Check size={18} /> Added to Bag!</>) : uploading ? 'Uploading images...' : 'Add to Bag'}
         </button>
       </div>
     </div>
+  )
+}
+
+export default function BookingPage({ params }: { params: Promise<{ service: string }> }) {
+  const { service } = use(params)
+  return (
+    <Suspense fallback={
+      <div className="min-h-dvh bg-white flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
+      </div>
+    }>
+      <BookingContent serviceParam={service} />
+    </Suspense>
   )
 }

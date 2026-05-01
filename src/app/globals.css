@@ -7,22 +7,78 @@
   --pink-light: #fdf0f7;
   --pink-medium: #f9c5e0;
   --pink-dark: #c7006e;
+  --app-max-width: 430px;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html {
-  max-width: 430px;
-  margin: 0 auto;
-}
+/* ============================================================
+   RESPONSIVE LAYOUT — mobile-first, desktop-centered
+   ============================================================ */
 
 body {
-  background: #f8f8f8;
+  background: #f0f0f0;
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+/* On desktop: show phone shell with centered card */
+@media (min-width: 768px) {
+  body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: linear-gradient(135deg, #f8e9f4 0%, #fce4ec 50%, #e8eaf6 100%);
+    padding: 32px 0 80px;
+    min-height: 100dvh;
+  }
+
+  #__next,
+  main,
+  body > div {
+    width: 100%;
+    max-width: var(--app-max-width);
+    margin: 0 auto;
+    min-height: calc(100dvh - 80px);
+    background: white;
+    border-radius: 32px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.18), 0 8px 24px rgba(233,30,140,0.08);
+    position: relative;
+  }
+}
+
+/* Mobile: full screen */
+@media (max-width: 767px) {
+  body {
+    background: white;
+  }
+}
+
+/* App shell */
+#app-shell {
+  width: 100%;
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+  position: relative;
+  min-height: 100dvh;
+  background: white;
+}
+
+@media (min-width: 768px) {
+  #app-shell {
+    min-height: auto;
+  }
+
+  /* Fix bottom nav on desktop — confine to shell */
+  nav[class*="fixed"] {
+    border-radius: 0 0 28px 28px;
+    overflow: hidden;
+  }
 }
 
 /* Scrollbar hide */

@@ -5,7 +5,6 @@ import { AppProvider } from "@/lib/context/AppContext"
 export const metadata: Metadata = {
   title: "Tarzi – Your Tailor, Your Style",
   description: "Connect with skilled Dubai tailors for alterations, bespoke clothing, and upcycling.",
-  manifest: "/manifest.json",
 }
 
 export const viewport: Viewport = {
@@ -24,7 +23,10 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AppProvider>
-          {children}
+          {/* App shell — centers the mobile UI on desktop */}
+          <div id="app-shell">
+            {children}
+          </div>
         </AppProvider>
       </body>
     </html>

@@ -21,13 +21,17 @@ export default function LoginPage() {
     setError('')
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) { setError(error.message); return }
-      router.push('/home')
-      router.refresh()
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setError(signInError.message)
+        setLoading(false)
+        return
+      }
+      if (data?.session) {
+        router.replace('/home')
+      }
     } catch {
       setError('Something went wrong. Please try again.')
-    } finally {
       setLoading(false)
     }
   }
@@ -67,7 +71,8 @@ export default function LoginPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@email.com"
-              className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all"
+              autoComplete="email"
+              className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
               style={{ border: '1.5px solid #e8e8e8', background: '#fafafa', fontSize: 15 }}
               onFocus={e => e.target.style.borderColor = '#e91e8c'}
               onBlur={e => e.target.style.borderColor = '#e8e8e8'}
@@ -84,7 +89,8 @@ export default function LoginPage() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter your password"
-                className="w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all pr-12"
+                autoComplete="current-password"
+                className="w-full px-4 py-3.5 rounded-xl outline-none transition-all pr-12"
                 style={{ border: '1.5px solid #e8e8e8', background: '#fafafa', fontSize: 15 }}
                 onFocus={e => e.target.style.borderColor = '#e91e8c'}
                 onBlur={e => e.target.style.borderColor = '#e8e8e8'}
@@ -101,9 +107,9 @@ export default function LoginPage() {
           </div>
 
           <div className="text-right">
-            <Link href="/forgot-password" style={{ fontSize: 13, color: '#e91e8c', fontWeight: 600 }}>
+            <button type="button" style={{ fontSize: 13, color: '#e91e8c', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
               Forgot password?
-            </Link>
+            </button>
           </div>
 
           <button
@@ -113,6 +119,7 @@ export default function LoginPage() {
             style={{
               background: loading ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
               boxShadow: '0 4px 15px rgba(233, 30, 140, 0.3)',
+              cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
             {loading ? 'Signing in...' : 'Log In'}
@@ -120,7 +127,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 text-center">
-          <span style={{ color: '#9e9e9e', fontSize: 14 }}>Don't have an account? </span>
+          <span style={{ color: '#9e9e9e', fontSize: 14 }}>Don&apos;t have an account? </span>
           <Link href="/signup" style={{ color: '#e91e8c', fontWeight: 700, fontSize: 14 }}>
             Create Account
           </Link>
