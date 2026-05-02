@@ -1,14 +1,19 @@
 import { redirect } from 'next/navigation'
 
 export default async function RootPage() {
-  // Dynamic import to avoid build-time Supabase crash
-  const { createClient } = await import('@/lib/supabase/server')
+  let isLoggedIn = false
+
   try {
+    const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) redirect('/home')
+    isLoggedIn = !!user
   } catch {
-    // env vars not available at build time — redirect to login
+    // Supabase unavailable — treat as logged out
+    isLoggedIn = false
   }
-  redirect('/login')
+
+  // redirect() must be called OUTSIDE try/catch
+  // because Next.js redirects work by throwing internally
+  redirect(isLoggedIn ? '/home' : '/login')
 }
