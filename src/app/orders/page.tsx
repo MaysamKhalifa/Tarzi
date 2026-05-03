@@ -7,6 +7,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import PageHeader from '@/components/layout/PageHeader'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
+import { useLanguage } from '@/lib/context/LanguageContext'
 import type { Order } from '@/types/database'
 
 type Tab = 'in_progress' | 'done'
@@ -24,6 +25,7 @@ const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling
 
 export default function OrdersPage() {
   const { user } = useApp()
+  const { t } = useLanguage()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('in_progress')
@@ -48,9 +50,9 @@ export default function OrdersPage() {
       {/* Pink header */}
       <div className="px-5 pt-12 pb-5"
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 12 }}>My Orders</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 12 }}>{t('orders', 'title')}</h1>
         <div className="flex gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.2)' }}>
-          {([['in_progress', 'In Progress'], ['done', 'Done']] as [Tab, string][]).map(([key, label]) => (
+          {([['in_progress', t('orders', 'in_progress')], ['done', t('orders', 'done')]] as [Tab, string][]).map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
               className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
               style={{
@@ -72,16 +74,16 @@ export default function OrdersPage() {
           <div className="text-center py-16">
             <Package size={48} color="#e8e8e8" className="mx-auto mb-4" />
             <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
-              {tab === 'in_progress' ? 'No active orders' : 'No completed orders'}
+              {tab === 'in_progress' ? t('orders', 'no_active') : t('orders', 'no_done')}
             </p>
             <p style={{ color: '#9e9e9e', fontSize: 13, marginBottom: 20 }}>
-              {tab === 'in_progress' ? 'Book a tailor to get started' : 'Completed orders will appear here'}
+              {tab === 'in_progress' ? t('orders', 'no_active_sub') : t('orders', 'no_done_sub')}
             </p>
             {tab === 'in_progress' && (
               <Link href="/home"
                 className="px-6 py-3 rounded-full text-white font-bold text-sm inline-block"
                 style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-                Book Now
+                {t('orders', 'book_now')}
               </Link>
             )}
           </div>
@@ -126,12 +128,12 @@ export default function OrdersPage() {
                     <Link href={`/chat/${order.id}`}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold"
                       style={{ background: '#fce4ec', color: '#e91e8c' }}>
-                      <MessageCircle size={14} /> Chat
+                      <MessageCircle size={14} /> {t('orders', 'chat')}
                     </Link>
                     <Link href={`/delivery?orderId=${order.id}`}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold"
                       style={{ background: '#f9f9f9', color: '#555' }}>
-                      <Truck size={14} /> Track
+                      <Truck size={14} /> {t('orders', 'track')}
                     </Link>
                   </div>
                 </div>

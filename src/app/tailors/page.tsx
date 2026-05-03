@@ -8,11 +8,13 @@ import PageHeader from '@/components/layout/PageHeader'
 import { SAMPLE_TAILORS } from '@/lib/data/tailors'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
+import { useLanguage } from '@/lib/context/LanguageContext'
 
 type ServiceFilter = 'all' | 'alterations' | 'from_scratch' | 'upcycling'
 
 export default function TailorsPage() {
   const { user } = useApp()
+  const { t } = useLanguage()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<ServiceFilter>('all')
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
@@ -57,10 +59,10 @@ export default function TailorsPage() {
   })
 
   const filters: { key: ServiceFilter; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'alterations', label: 'Alterations' },
-    { key: 'from_scratch', label: 'From Scratch' },
-    { key: 'upcycling', label: 'Upcycling' },
+    { key: 'all', label: t('tailors', 'all') },
+    { key: 'alterations', label: t('tailors', 'alterations') },
+    { key: 'from_scratch', label: t('tailors', 'from_scratch') },
+    { key: 'upcycling', label: t('tailors', 'upcycling') },
   ]
 
   return (
@@ -68,13 +70,13 @@ export default function TailorsPage() {
       {/* Pink header */}
       <div className="px-5 pt-12 pb-5"
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 12 }}>Nearby Tailors</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 12 }}>{t('tailors', 'title')}</h1>
         <div className="relative">
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search tailors, areas, expertise..."
+            placeholder={t('tailors', 'search_placeholder')}
             className="w-full pl-11 pr-4 py-3 rounded-2xl text-sm outline-none"
             style={{ background: 'white', fontSize: 14 }}
           />
@@ -98,7 +100,7 @@ export default function TailorsPage() {
 
       {/* Count */}
       <div className="px-5 pb-2">
-        <p style={{ fontSize: 13, color: '#9e9e9e' }}>{tailors.length} tailors found</p>
+        <p style={{ fontSize: 13, color: '#9e9e9e' }}>{tailors.length} {t('tailors', 'found')}</p>
       </div>
 
       {/* Tailor list */}
@@ -122,11 +124,11 @@ export default function TailorsPage() {
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>{tailor.name}</p>
                   {tailor.is_available ? (
                     <span style={{ fontSize: 10, background: '#e8f5e9', color: '#2e7d32', padding: '2px 8px', borderRadius: 50, fontWeight: 600, flexShrink: 0 }}>
-                      Available
+                      {t('common', 'available')}
                     </span>
                   ) : (
                     <span style={{ fontSize: 10, background: '#f5f5f5', color: '#9e9e9e', padding: '2px 8px', borderRadius: 50, fontWeight: 600, flexShrink: 0 }}>
-                      Busy
+                      {t('common', 'busy')}
                     </span>
                   )}
                 </div>
@@ -146,7 +148,7 @@ export default function TailorsPage() {
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a' }}>{tailor.rating}</span>
                     <span style={{ fontSize: 11, color: '#9e9e9e' }}> ({tailor.review_count})</span>
                   </div>
-                  <span style={{ fontSize: 11, color: '#9e9e9e' }}>• {tailor.experience_years} yrs exp</span>
+                  <span style={{ fontSize: 11, color: '#9e9e9e' }}>• {tailor.experience_years} {t('common', 'yrs_exp')}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1 mt-2">
@@ -178,8 +180,8 @@ export default function TailorsPage() {
         {tailors.length === 0 && (
           <div className="text-center py-16">
             <Scissors size={40} color="#ddd" className="mx-auto mb-3" />
-            <p style={{ color: '#9e9e9e', fontSize: 14 }}>No tailors found</p>
-            <p style={{ color: '#bbb', fontSize: 12 }}>Try a different search</p>
+            <p style={{ color: '#9e9e9e', fontSize: 14 }}>{t('tailors', 'no_results')}</p>
+            <p style={{ color: '#bbb', fontSize: 12 }}>{t('tailors', 'no_results_sub')}</p>
           </div>
         )}
       </div>

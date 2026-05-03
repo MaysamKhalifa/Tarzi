@@ -135,3 +135,31 @@ body {
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   word-break: break-word;
 }
+
+/* ── RTL Support ── */
+[dir="rtl"] {
+  font-family: -apple-system, 'Segoe UI', 'Noto Sans Arabic', 'Noto Nastaliq Urdu', Roboto, sans-serif;
+}
+
+[dir="rtl"] .no-flip {
+  direction: ltr;
+}
+
+/* Flip chevron/arrow icons in RTL */
+[dir="rtl"] .rtl-flip {
+  transform: scaleX(-1);
+}
+
+/* Ensure inputs align correctly in RTL */
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="tel"],
+[dir="rtl"] input[type="password"] {
+  text-align: left;
+  direction: ltr;
+}

@@ -5,9 +5,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Scissors, User, Phone, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/context/LanguageContext'
+import LanguageSelector from '@/components/LanguageSelector'
 
 export default function SignupPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', password: '', confirmPassword: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -17,9 +20,9 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.fullName || !form.email || !form.password) { setError('Please fill in all required fields'); return }
-    if (form.password.length < 8) { setError('Password must be at least 8 characters'); return }
-    if (form.password !== form.confirmPassword) { setError('Passwords do not match'); return }
+    if (!form.fullName || !form.email || !form.password) { setError(t('signup', 'err_required')); return }
+    if (form.password.length < 8) { setError(t('signup', 'err_length')); return }
+    if (form.password !== form.confirmPassword) { setError(t('signup', 'err_match')); return }
 
     setLoading(true)
     setError('')
@@ -67,19 +70,19 @@ export default function SignupPage() {
           <Mail size={40} color="#e91e8c" />
         </div>
         <h2 style={{ fontSize: 26, fontWeight: 800, color: '#1a1a1a', marginBottom: 10 }}>
-          Verify your email
+          {t('signup', 'verify_title')}
         </h2>
         <p style={{ color: '#555', fontSize: 15, lineHeight: 1.7, marginBottom: 6 }}>
-          We&apos;ve sent a confirmation link to:
+          {t('signup', 'verify_sub')}
         </p>
         <p style={{ color: '#e91e8c', fontWeight: 700, fontSize: 15, marginBottom: 24 }}>{sentTo}</p>
         <p style={{ color: '#9e9e9e', fontSize: 13, lineHeight: 1.7, marginBottom: 32 }}>
-          Click the link in the email to activate your account. Check your spam folder if you don&apos;t see it.
+          {t('signup', 'verify_check')}
         </p>
         <Link href="/login"
           className="w-full py-4 rounded-full text-white font-bold text-base block"
           style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-          Go to Login
+          {t('signup', 'verify_go')}
         </Link>
       </div>
     )
@@ -94,8 +97,8 @@ export default function SignupPage() {
             style={{ boxShadow: '0 6px 20px rgba(233,30,140,0.25)' }}>
             <Scissors size={30} color="#e91e8c" strokeWidth={1.8} />
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: 'white' }}>Join Tarzi</h1>
-          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 2 }}>Create your account</p>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: 'white' }}>{t('signup', 'title')}</h1>
+          <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 2 }}>{t('signup', 'subtitle')}</p>
         </div>
       </div>
 
@@ -109,37 +112,37 @@ export default function SignupPage() {
 
         <form onSubmit={handleSignup} className="flex flex-col gap-4">
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Full Name *</label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t('signup', 'full_name')} *</label>
             <div className="relative">
               <input type="text" value={form.fullName} onChange={e => update('fullName', e.target.value)}
-                placeholder="Hamda Khalifa" className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
+                placeholder={t('signup', 'placeholder_name')} className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
                 style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
               <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color="#9e9e9e" />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Email address *</label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t('signup', 'email')} *</label>
             <input type="email" value={form.email} onChange={e => update('email', e.target.value)}
               placeholder="you@email.com" className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
               style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Phone number</label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t('signup', 'phone')}</label>
             <div className="relative">
               <input type="tel" value={form.phone} onChange={e => update('phone', e.target.value)}
-                placeholder="+971 50 000 0000" className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
+                placeholder={t('signup', 'placeholder_phone')} className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
                 style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
               <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color="#9e9e9e" />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Password *</label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t('signup', 'password')} *</label>
             <div className="relative">
               <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => update('password', e.target.value)}
-                placeholder="At least 8 characters" className="w-full px-4 py-3.5 rounded-xl pr-12 outline-none transition-all"
+                placeholder={t('signup', 'placeholder_password')} className="w-full px-4 py-3.5 rounded-xl pr-12 outline-none transition-all"
                 style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: '#9e9e9e' }}>
@@ -149,22 +152,30 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Confirm Password *</label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t('signup', 'confirm_password')} *</label>
             <input type="password" value={form.confirmPassword} onChange={e => update('confirmPassword', e.target.value)}
-              placeholder="Repeat your password" className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
+              placeholder={t('signup', 'placeholder_confirm')} className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
               style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
           </div>
 
           <button type="submit" disabled={loading}
             className="w-full py-4 rounded-full text-white font-bold text-base mt-2 transition-all"
             style={{ background: loading ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)', boxShadow: '0 4px 15px rgba(233,30,140,0.3)' }}>
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? t('signup', 'creating') : t('signup', 'btn')}
           </button>
         </form>
 
+        {/* Language selector */}
+        <div className="mt-4">
+          <p style={{ fontSize: 12, fontWeight: 600, color: '#9e9e9e', marginBottom: 8, textAlign: 'center' }}>
+            {t('signup', 'language_label')}
+          </p>
+          <div className="flex justify-center"><LanguageSelector compact /></div>
+        </div>
+
         <div className="mt-5 text-center">
-          <span style={{ color: '#9e9e9e', fontSize: 14 }}>Already have an account? </span>
-          <Link href="/login" style={{ color: '#e91e8c', fontWeight: 700, fontSize: 14 }}>Log In</Link>
+          <span style={{ color: '#9e9e9e', fontSize: 14 }}>{t('signup', 'have_account')} </span>
+          <Link href="/login" style={{ color: '#e91e8c', fontWeight: 700, fontSize: 14 }}>{t('signup', 'log_in')}</Link>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import "./globals.css"
 import { AppProvider } from "@/lib/context/AppContext"
+import { LanguageProvider } from "@/lib/context/LanguageContext"
 
 export const metadata: Metadata = {
   title: "Tarzi – Your Tailor, Your Style",
@@ -14,20 +15,17 @@ export const viewport: Viewport = {
   maximumScale: 1,
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" dir="ltr">
       <body>
-        <AppProvider>
-          {/* App shell — centers the mobile UI on desktop */}
-          <div id="app-shell">
-            {children}
-          </div>
-        </AppProvider>
+        <LanguageProvider>
+          <AppProvider>
+            <div id="app-shell">
+              {children}
+            </div>
+          </AppProvider>
+        </LanguageProvider>
       </body>
     </html>
   )

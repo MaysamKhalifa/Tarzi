@@ -11,12 +11,15 @@ import {
 import BottomNav from '@/components/layout/BottomNav'
 import { useApp } from '@/lib/context/AppContext'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/context/LanguageContext'
+import LanguageSelector from '@/components/LanguageSelector'
 
 type ModalType = 'notifications' | 'payment' | 'settings' | 'help' | 'terms' | null
 
 export default function ProfilePage() {
   const router = useRouter()
   const { user, profile, refreshProfile } = useApp()
+  const { t } = useLanguage()
   const [editingName, setEditingName] = useState(false)
   const [newName, setNewName] = useState(profile?.full_name || '')
   const [saving, setSaving] = useState(false)
@@ -49,26 +52,26 @@ export default function ProfilePage() {
 
   const MENU_SECTIONS = [
     {
-      title: 'Account',
+      title: t('profile', 'account'),
       items: [
-        { icon: Bell, label: 'Notifications', action: () => setActiveModal('notifications') },
-        { icon: Package, label: 'Order History', href: '/orders' },
-        { icon: Heart, label: 'Saved Tailors', href: '/saved-tailors' },
-        { icon: MapPin, label: 'My Addresses', href: '/location' },
+        { icon: Bell, label: t('profile', 'notifications'), action: () => setActiveModal('notifications') },
+        { icon: Package, label: t('profile', 'order_history'), href: '/orders' },
+        { icon: Heart, label: t('profile', 'saved_tailors'), href: '/saved-tailors' },
+        { icon: MapPin, label: t('profile', 'addresses'), href: '/location' },
       ],
     },
     {
       title: 'Payments',
       items: [
-        { icon: CreditCard, label: 'Payment & Refunds', action: () => setActiveModal('payment') },
+        { icon: CreditCard, label: t('profile', 'payment'), action: () => setActiveModal('payment') },
       ],
     },
     {
-      title: 'Support',
+      title: t('profile', 'support_title'),
       items: [
-        { icon: Settings, label: 'Settings', action: () => setActiveModal('settings') },
-        { icon: HelpCircle, label: 'Help & Support', action: () => setActiveModal('help') },
-        { icon: FileText, label: 'Terms & Conditions', action: () => setActiveModal('terms') },
+        { icon: Settings, label: t('profile', 'settings'), action: () => setActiveModal('settings') },
+        { icon: HelpCircle, label: t('profile', 'help'), action: () => setActiveModal('help') },
+        { icon: FileText, label: t('profile', 'terms'), action: () => setActiveModal('terms') },
       ],
     },
   ]
@@ -118,11 +121,19 @@ export default function ProfilePage() {
       ),
     },
     settings: {
-      title: 'Settings',
+      title: t('settings_modal', 'title'),
       content: (
         <div className="flex flex-col gap-3">
+          <div className="p-4 flex flex-col gap-3">
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>
+              {t('settings_modal', 'language')}
+            </p>
+            <p style={{ fontSize: 12, color: '#9e9e9e' }}>
+              {t('settings_modal', 'language_hint')}
+            </p>
+            <LanguageSelector userId={user?.id} />
+          </div>
           {[
-            { label: 'Language', value: 'English' },
             { label: 'Currency', value: 'AED (د.إ)' },
             { label: 'Region', value: 'Dubai, UAE' },
             { label: 'App Version', value: 'v1.0.0' },
@@ -188,7 +199,7 @@ export default function ProfilePage() {
     <div className="min-h-dvh bg-white pb-24">
       {/* Pink header */}
       <div className="px-5 pt-12 pb-16" style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white' }}>Profile</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white' }}>{t('profile', 'title')}</h1>
       </div>
 
       {/* Profile card */}
@@ -280,7 +291,7 @@ export default function ProfilePage() {
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: '#ffebee' }}>
             <LogOut size={16} color="#f44336" />
           </div>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#f44336' }}>Logout</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#f44336' }}>{t('profile', 'logout')}</span>
         </button>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 4 }}>

@@ -7,10 +7,12 @@ import BottomNav from '@/components/layout/BottomNav'
 import PageHeader from '@/components/layout/PageHeader'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
+import { useLanguage } from '@/lib/context/LanguageContext'
 import type { Measurement } from '@/types/database'
 
 export default function MeasurementsPage() {
   const { user } = useApp()
+  const { t } = useLanguage()
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -26,7 +28,7 @@ export default function MeasurementsPage() {
 
   return (
     <div className="min-h-dvh bg-white pb-24">
-      <PageHeader title="My Measurements" showBack={false} />
+      <PageHeader title={t('measurements', 'title')} showBack={false} />
 
       <div className="px-5 flex flex-col gap-5 py-4">
         {/* Options */}
@@ -39,9 +41,9 @@ export default function MeasurementsPage() {
               <Ruler size={26} color="#e91e8c" />
             </div>
             <div className="flex-1">
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>Measure by Myself</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>{t('measurements', 'self')}</p>
               <p style={{ fontSize: 13, color: '#757575', marginTop: 2, lineHeight: 1.4 }}>
-                Measure yourself or enter your known measurements
+                {t('measurements', 'self_desc')}
               </p>
             </div>
             <ChevronRight size={18} color="#e91e8c" />
@@ -55,9 +57,9 @@ export default function MeasurementsPage() {
               <User size={26} color="#2e7d32" />
             </div>
             <div className="flex-1">
-              <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>Measurement by Tailor</p>
+              <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>{t('measurements', 'tailor')}</p>
               <p style={{ fontSize: 13, color: '#757575', marginTop: 2, lineHeight: 1.4 }}>
-                A tailor visits your home to take precise measurements
+                {t('measurements', 'tailor_desc')}
               </p>
             </div>
             <ChevronRight size={18} color="#2e7d32" />
@@ -83,8 +85,8 @@ export default function MeasurementsPage() {
           ) : measurements.length === 0 ? (
             <div className="text-center py-10 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <Ruler size={40} color="#ddd" className="mx-auto mb-3" />
-              <p style={{ color: '#9e9e9e', fontSize: 14 }}>No measurements saved yet</p>
-              <p style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>Add your first measurement profile</p>
+              <p style={{ color: '#9e9e9e', fontSize: 14 }}>{t('measurements', 'no_measurements')}</p>
+              <p style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>{t('measurements', 'add_first')}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -102,7 +104,7 @@ export default function MeasurementsPage() {
                   {m.is_default && (
                     <span className="flex items-center gap-1 px-2 py-1 rounded-lg"
                       style={{ background: '#e8f5e9', fontSize: 11, color: '#2e7d32', fontWeight: 600 }}>
-                      <Check size={10} /> Default
+                      <Check size={10} /> {t('measurements', 'default_label')}
                     </span>
                   )}
                 </div>

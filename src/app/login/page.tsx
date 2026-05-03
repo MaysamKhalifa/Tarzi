@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Scissors } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/context/LanguageContext'
+import LanguageSelector from '@/components/LanguageSelector'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { t } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -25,9 +28,9 @@ export default function LoginPage() {
       if (signInError) {
         const msg = signInError.message
         if (msg.toLowerCase().includes('not confirmed') || msg.toLowerCase().includes('email not confirmed')) {
-          setError('Please verify your email first. Check your inbox for the confirmation link we sent you.')
+          setError(t('login', 'err_not_confirmed'))
         } else if (msg.toLowerCase().includes('invalid login credentials')) {
-          setError('Incorrect email or password. Please try again.')
+          setError(t('login', 'err_invalid'))
         } else {
           setError(msg)
         }
@@ -58,8 +61,8 @@ export default function LoginPage() {
 
       {/* Login form */}
       <div className="px-6 py-8 -mt-8 rounded-t-3xl bg-white flex-1">
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>Welcome back!</h2>
-        <p style={{ color: '#9e9e9e', fontSize: 14, marginBottom: 28 }}>Sign in to your account</p>
+        <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a', marginBottom: 6 }}>{t('login', 'title')}</h2>
+        <p style={{ color: '#9e9e9e', fontSize: 14, marginBottom: 28 }}>{t('login', 'subtitle')}</p>
 
         {error && (
           <div className="mb-4 px-4 py-3 rounded-xl text-sm"
@@ -71,7 +74,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-              Email address
+              {t('login', 'email')}
             </label>
             <input
               type="email"
@@ -88,7 +91,7 @@ export default function LoginPage() {
 
           <div>
             <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-              Password
+              {t('login', 'password')}
             </label>
             <div className="relative">
               <input
@@ -115,7 +118,7 @@ export default function LoginPage() {
 
           <div className="text-right">
             <button type="button" style={{ fontSize: 13, color: '#e91e8c', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
-              Forgot password?
+              {t('login', 'forgot')}
             </button>
           </div>
 
@@ -129,14 +132,22 @@ export default function LoginPage() {
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
-            {loading ? 'Signing in...' : 'Log In'}
+            {loading ? t('common', 'loading') : t('login', 'btn')}
           </button>
         </form>
 
+        {/* Language selector */}
+        <div className="mt-4">
+          <p style={{ fontSize: 12, fontWeight: 600, color: '#9e9e9e', marginBottom: 8, textAlign: 'center' }}>
+            {t('login', 'language_label')}
+          </p>
+          <div className="flex justify-center"><LanguageSelector compact /></div>
+        </div>
+
         <div className="mt-6 text-center">
-          <span style={{ color: '#9e9e9e', fontSize: 14 }}>Don&apos;t have an account? </span>
+          <span style={{ color: '#9e9e9e', fontSize: 14 }}>{t('login', 'no_account')} </span>
           <Link href="/signup" style={{ color: '#e91e8c', fontWeight: 700, fontSize: 14 }}>
-            Create Account
+            {t('login', 'create')}
           </Link>
         </div>
       </div>

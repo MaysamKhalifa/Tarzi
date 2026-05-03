@@ -44,7 +44,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single()
-    if (data) setProfile(data)
+    if (data) {
+      setProfile(data)
+      // Load saved language preference
+      if (data.language && ['en', 'ar', 'ur'].includes(data.language)) {
+        localStorage.setItem('tarzi_lang', data.language)
+        document.documentElement.setAttribute('lang', data.language)
+        document.documentElement.setAttribute('dir', ['ar', 'ur'].includes(data.language) ? 'rtl' : 'ltr')
+      }
+    }
   }
 
   useEffect(() => {

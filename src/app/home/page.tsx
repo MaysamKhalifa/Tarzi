@@ -6,25 +6,27 @@ import { Search, Bell, Scissors, RefreshCw, Sparkles, ChevronRight, Star, MapPin
 import BottomNav from '@/components/layout/BottomNav'
 import { useApp } from '@/lib/context/AppContext'
 import { SAMPLE_TAILORS } from '@/lib/data/tailors'
+import { useLanguage } from '@/lib/context/LanguageContext'
 
 type Gender = 'male' | 'female'
 
-const MALE_SERVICES = [
-  { id: 'alterations', label: 'Alterations', icon: Scissors, color: '#e91e8c', bg: '#fce4ec', desc: 'Fix & adjust existing clothes' },
-  { id: 'upcycling', label: 'Upcycling', icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', desc: 'Reimagine old garments' },
-  { id: 'from_scratch', label: 'From Scratch', icon: Sparkles, color: '#f57c00', bg: '#fff3e0', desc: 'Create your dream outfit' },
-]
-
-const FEMALE_SERVICES = [
-  { id: 'alterations', label: 'Alterations', icon: Scissors, color: '#e91e8c', bg: '#fce4ec', desc: 'Fix & adjust existing clothes' },
-  { id: 'upcycling', label: 'Upcycling', icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', desc: 'Reimagine old garments' },
-  { id: 'from_scratch', label: 'From Scratch', icon: Sparkles, color: '#f57c00', bg: '#fff3e0', desc: 'Create your dream outfit' },
-]
-
 export default function HomePage() {
   const { profile } = useApp()
+  const { t } = useLanguage()
   const [gender, setGender] = useState<Gender>('female')
   const [search, setSearch] = useState('')
+
+  const MALE_SERVICES = [
+    { id: 'alterations', label: t('home', 'alterations'), icon: Scissors, color: '#e91e8c', bg: '#fce4ec', desc: t('home', 'alterations_desc') },
+    { id: 'upcycling', label: t('home', 'upcycling'), icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', desc: t('home', 'upcycling_desc') },
+    { id: 'from_scratch', label: t('home', 'from_scratch'), icon: Sparkles, color: '#f57c00', bg: '#fff3e0', desc: t('home', 'from_scratch_desc') },
+  ]
+
+  const FEMALE_SERVICES = [
+    { id: 'alterations', label: t('home', 'alterations'), icon: Scissors, color: '#e91e8c', bg: '#fce4ec', desc: t('home', 'alterations_desc') },
+    { id: 'upcycling', label: t('home', 'upcycling'), icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', desc: t('home', 'upcycling_desc') },
+    { id: 'from_scratch', label: t('home', 'from_scratch'), icon: Sparkles, color: '#f57c00', bg: '#fff3e0', desc: t('home', 'from_scratch_desc') },
+  ]
 
   const firstName = profile?.full_name?.split(' ')[0] || 'there'
   const services = gender === 'male' ? MALE_SERVICES : FEMALE_SERVICES
@@ -40,8 +42,8 @@ export default function HomePage() {
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
         <div className="flex items-center justify-between mb-5">
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>Good day,</p>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white' }}>Hello, {firstName}! 👋</h1>
+            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>{t('home', 'good_day')}</p>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white' }}>{t('home', 'hello')}, {firstName}! 👋</h1>
           </div>
           <Link href="/profile"
             className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center relative">
@@ -56,7 +58,7 @@ export default function HomePage() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search tailors, services..."
+            placeholder={t('home', 'search_placeholder')}
             className="w-full pl-11 pr-4 py-3 rounded-2xl text-sm outline-none"
             style={{ background: 'white', fontSize: 14 }}
           />
@@ -76,7 +78,7 @@ export default function HomePage() {
                   color: gender === g ? '#e91e8c' : '#9e9e9e',
                   boxShadow: gender === g ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
                 }}>
-                {g === 'female' ? '👗 Female' : '👔 Male'}
+                {g === 'female' ? t('home', 'female') : t('home', 'male')}
               </button>
             ))}
           </div>
@@ -85,7 +87,7 @@ export default function HomePage() {
         {/* Services grid */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>Our Services</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>{t('home', 'services_title')}</h2>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {services.map(svc => {
@@ -124,9 +126,9 @@ export default function HomePage() {
         {/* Nearby tailors */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>Nearby Tailors</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }}>{t('home', 'nearby_title')}</h2>
             <Link href="/tailors" style={{ fontSize: 13, color: '#e91e8c', fontWeight: 600 }}>
-              See all
+              {t('home', 'view_all')}
             </Link>
           </div>
           <div className="flex flex-col gap-3">
