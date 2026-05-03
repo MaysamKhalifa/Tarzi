@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Scissors, User, Phone } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Eye, EyeOff, Scissors, User, Phone, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SignupPage() {
@@ -12,6 +12,8 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailSent, setEmailSent] = useState(false)
+  const [sentTo, setSentTo] = useState('')
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -23,22 +25,28 @@ export default function SignupPage() {
     setError('')
     try {
       const supabase = createClient()
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
         options: {
           data: { full_name: form.fullName },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (error) { setError(error.message); return }
+      if (signUpError) { setError(signUpError.message); setLoading(false); return }
 
-      // Update profile with phone
       if (data.user && form.phone) {
         await supabase.from('profiles').update({ phone: form.phone }).eq('id', data.user.id)
       }
 
-      router.push('/home')
-      router.refresh()
+      if (data.session) {
+        // Email confirmation disabled — go straight to home
+        router.replace('/home')
+      } else {
+        // Email confirmation required — show check email screen
+        setSentTo(form.email)
+        setEmailSent(true)
+      }
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -48,15 +56,37 @@ export default function SignupPage() {
 
   const update = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const InputStyle = {
-    border: '1.5px solid #e8e8e8',
-    background: '#fafafa',
-    fontSize: 15,
+  const InputStyle = { border: '1.5px solid #e8e8e8', background: '#fafafa', fontSize: 15 }
+
+  // ── Email sent confirmation screen ──
+  if (emailSent) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center bg-white px-6 text-center">
+        <div className="w-24 h-24 rounded-full flex items-center justify-center mb-6"
+          style={{ background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)' }}>
+          <Mail size={40} color="#e91e8c" />
+        </div>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: '#1a1a1a', marginBottom: 10 }}>
+          Verify your email
+        </h2>
+        <p style={{ color: '#555', fontSize: 15, lineHeight: 1.7, marginBottom: 6 }}>
+          We&apos;ve sent a confirmation link to:
+        </p>
+        <p style={{ color: '#e91e8c', fontWeight: 700, fontSize: 15, marginBottom: 24 }}>{sentTo}</p>
+        <p style={{ color: '#9e9e9e', fontSize: 13, lineHeight: 1.7, marginBottom: 32 }}>
+          Click the link in the email to activate your account. Check your spam folder if you don&apos;t see it.
+        </p>
+        <Link href="/login"
+          className="w-full py-4 rounded-full text-white font-bold text-base block"
+          style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+          Go to Login
+        </Link>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-dvh flex flex-col bg-white">
-      {/* Header */}
       <div className="flex items-center justify-center px-6 pt-12 pb-8"
         style={{ background: 'linear-gradient(160deg, #e91e8c 0%, #f06292 60%, #fce4ec 100%)' }}>
         <div className="text-center">
@@ -69,7 +99,6 @@ export default function SignupPage() {
         </div>
       </div>
 
-      {/* Form */}
       <div className="px-6 py-6 -mt-6 rounded-t-3xl bg-white flex-1">
         {error && (
           <div className="mb-4 px-4 py-3 rounded-xl text-sm"
@@ -80,74 +109,38 @@ export default function SignupPage() {
 
         <form onSubmit={handleSignup} className="flex flex-col gap-4">
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-              Full Name *
-            </label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Full Name *</label>
             <div className="relative">
-              <input
-                type="text"
-                value={form.fullName}
-                onChange={e => update('fullName', e.target.value)}
-                placeholder="Hamda Khalifa"
-                className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
-                style={InputStyle}
-                onFocus={e => e.target.style.borderColor = '#e91e8c'}
-                onBlur={e => e.target.style.borderColor = '#e8e8e8'}
-              />
+              <input type="text" value={form.fullName} onChange={e => update('fullName', e.target.value)}
+                placeholder="Hamda Khalifa" className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
+                style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
               <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color="#9e9e9e" />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-              Email address *
-            </label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={e => update('email', e.target.value)}
-              placeholder="you@email.com"
-              className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
-              style={InputStyle}
-              onFocus={e => e.target.style.borderColor = '#e91e8c'}
-              onBlur={e => e.target.style.borderColor = '#e8e8e8'}
-            />
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Email address *</label>
+            <input type="email" value={form.email} onChange={e => update('email', e.target.value)}
+              placeholder="you@email.com" className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
+              style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-              Phone number
-            </label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Phone number</label>
             <div className="relative">
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={e => update('phone', e.target.value)}
-                placeholder="+971 50 000 0000"
-                className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
-                style={InputStyle}
-                onFocus={e => e.target.style.borderColor = '#e91e8c'}
-                onBlur={e => e.target.style.borderColor = '#e8e8e8'}
-              />
+              <input type="tel" value={form.phone} onChange={e => update('phone', e.target.value)}
+                placeholder="+971 50 000 0000" className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all"
+                style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
               <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color="#9e9e9e" />
             </div>
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-              Password *
-            </label>
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Password *</label>
             <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={form.password}
-                onChange={e => update('password', e.target.value)}
-                placeholder="At least 8 characters"
-                className="w-full px-4 py-3.5 rounded-xl pr-12 outline-none transition-all"
-                style={InputStyle}
-                onFocus={e => e.target.style.borderColor = '#e91e8c'}
-                onBlur={e => e.target.style.borderColor = '#e8e8e8'}
-              />
+              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={e => update('password', e.target.value)}
+                placeholder="At least 8 characters" className="w-full px-4 py-3.5 rounded-xl pr-12 outline-none transition-all"
+                style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: '#9e9e9e' }}>
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -156,30 +149,15 @@ export default function SignupPage() {
           </div>
 
           <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-              Confirm Password *
-            </label>
-            <input
-              type="password"
-              value={form.confirmPassword}
-              onChange={e => update('confirmPassword', e.target.value)}
-              placeholder="Repeat your password"
-              className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
-              style={InputStyle}
-              onFocus={e => e.target.style.borderColor = '#e91e8c'}
-              onBlur={e => e.target.style.borderColor = '#e8e8e8'}
-            />
+            <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Confirm Password *</label>
+            <input type="password" value={form.confirmPassword} onChange={e => update('confirmPassword', e.target.value)}
+              placeholder="Repeat your password" className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
+              style={InputStyle} onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
+          <button type="submit" disabled={loading}
             className="w-full py-4 rounded-full text-white font-bold text-base mt-2 transition-all"
-            style={{
-              background: loading ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
-              boxShadow: '0 4px 15px rgba(233, 30, 140, 0.3)',
-            }}
-          >
+            style={{ background: loading ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)', boxShadow: '0 4px 15px rgba(233,30,140,0.3)' }}>
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>

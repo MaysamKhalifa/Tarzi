@@ -116,3 +116,22 @@ body {
   padding: 10px 14px;
   word-break: break-word;
 }
+
+/* ── Chat bubbles ── */
+.bubble-user {
+  background: linear-gradient(135deg, #e91e8c 0%, #f06292 100%);
+  color: white;
+  padding: 10px 14px;
+  border-radius: 18px 18px 4px 18px;
+  word-break: break-word;
+}
+
+.bubble-tailor {
+  background: white;
+  color: #1a1a1a;
+  padding: 10px 14px;
+  border-radius: 18px 18px 18px 4px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  word-break: break-word;
+}

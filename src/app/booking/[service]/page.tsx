@@ -73,22 +73,34 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
 
   const handleImageUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
-    const newFiles = Array.from(files) // no limit on number of files
+    const newFiles = Array.from(files)
     setImages(prev => [...prev, ...newFiles])
 
     if (!user) return
     setUploading(true)
     const supabase = createClient()
     const uploaded: string[] = []
+
     for (const file of newFiles) {
-      const ext = file.name.split('.').pop()
-      const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { data } = await supabase.storage.from('garment-images').upload(path, file, { upsert: true })
-      if (data) {
-        const { data: urlData } = supabase.storage.from('garment-images').getPublicUrl(data.path)
-        uploaded.push(urlData.publicUrl)
+      try {
+        const ext = file.name.split('.').pop() || 'jpg'
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const { data, error } = await supabase.storage
+          .from('garment-images')
+          .upload(path, file, { upsert: true, contentType: file.type })
+        if (error) {
+          console.error('Upload error:', error.message)
+          continue
+        }
+        if (data) {
+          const { data: urlData } = supabase.storage.from('garment-images').getPublicUrl(data.path)
+          uploaded.push(urlData.publicUrl)
+        }
+      } catch (err) {
+        console.error('Upload failed for file:', file.name, err)
       }
     }
+
     setImageUrls(prev => [...prev, ...uploaded])
     setUploading(false)
   }

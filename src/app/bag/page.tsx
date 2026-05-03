@@ -7,10 +7,21 @@ import {
   ShoppingBag, Trash2, ChevronRight, Calendar, Clock,
   MapPin, Scissors, RefreshCw, Sparkles, CheckCircle
 } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { Navigation } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
 import PageHeader from '@/components/layout/PageHeader'
 import { useApp } from '@/lib/context/AppContext'
 import { createClient } from '@/lib/supabase/client'
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 200, borderRadius: 16, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="w-7 h-7 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
+    </div>
+  ),
+})
 
 const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling: RefreshCw }
 const SERVICE_COLORS = { alterations: '#e91e8c', from_scratch: '#f57c00', upcycling: '#7b1fa2' }
@@ -27,6 +38,31 @@ export default function BagPage() {
   const [placing, setPlacing] = useState(false)
   const [ordered, setOrdered] = useState(false)
   const [orderError, setOrderError] = useState('')
+  const [showMap, setShowMap] = useState(false)
+  const [mapLat, setMapLat] = useState(25.2048)
+  const [mapLng, setMapLng] = useState(55.2708)
+  const [locating, setLocating] = useState(false)
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords
+        setMapLat(lat)
+        setMapLng(lng)
+        setShowMap(true)
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, { headers: { 'Accept-Language': 'en' } })
+          const data = await res.json()
+          setAddress(data.display_name?.split(',').slice(0, 3).join(',').trim() || `${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+        } catch { setAddress(`${lat.toFixed(4)}, ${lng.toFixed(4)}`) }
+        setLocating(false)
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true }
+    )
+  }
 
   const handleCheckout = async () => {
     if (!pickupDate || !pickupTime || !address || cart.length === 0) return
@@ -242,6 +278,39 @@ export default function BagPage() {
               <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
                 Pickup Address *
               </label>
+
+              {/* Map toggle + detect location buttons */}
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setShowMap(s => !s)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                  style={{ border: `2px solid ${showMap ? '#e91e8c' : '#e8e8e8'}`, background: showMap ? '#fce4ec' : 'white', color: showMap ? '#e91e8c' : '#555' }}>
+                  <MapPin size={13} /> {showMap ? 'Hide Map' : 'Pick on Map'}
+                </button>
+                <button type="button" onClick={handleDetectLocation} disabled={locating}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                  style={{ border: '2px solid #e8e8e8', background: 'white', color: '#555' }}>
+                  <Navigation size={13} /> {locating ? 'Locating...' : 'Use My Location'}
+                </button>
+              </div>
+
+              {/* Map */}
+              {showMap && (
+                <div className="mb-3">
+                  <MapPicker
+                    lat={mapLat}
+                    lng={mapLng}
+                    onSelect={(lat, lng, addr) => {
+                      setMapLat(lat)
+                      setMapLng(lng)
+                      setAddress(addr.split(',').slice(0, 3).join(',').trim())
+                    }}
+                  />
+                  <p style={{ fontSize: 11, color: '#9e9e9e', marginTop: 6, textAlign: 'center' }}>
+                    Tap anywhere on the map to set pickup location
+                  </p>
+                </div>
+              )}
+
               <textarea
                 value={address}
                 onChange={e => setAddress(e.target.value)}
