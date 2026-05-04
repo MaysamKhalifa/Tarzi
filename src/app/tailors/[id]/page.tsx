@@ -3,7 +3,7 @@
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MapPin, Star, Clock, Phone, Heart, ChevronLeft, Scissors, Check } from 'lucide-react'
+import { MapPin, Star, Clock, Phone, Heart, ChevronLeft, Scissors, Check, MessageCircle } from 'lucide-react'
 import { SAMPLE_TAILORS, TAILOR_REVIEWS } from '@/lib/data/tailors'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
@@ -208,19 +208,21 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
       {/* Action buttons — fixed at bottom */}
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-5 py-4 bg-white"
         style={{ borderTop: '1px solid #f0f0f0', boxShadow: '0 -4px 20px rgba(0,0,0,0.06)' }}>
-        <div className="flex gap-3">
-          <a
-            href={`tel:${tailor.phone}`}
-            className="flex items-center justify-center gap-2 py-3 px-5 rounded-full font-semibold text-sm"
-            style={{ border: '2px solid #e91e8c', color: '#e91e8c', flex: 1 }}
-          >
-            <Phone size={16} /> Call
+        <div className="flex gap-2">
+          <a href={`tel:${tailor.phone}`}
+            className="flex items-center justify-center gap-1.5 py-3 px-4 rounded-full font-semibold text-sm"
+            style={{ border: '2px solid #e91e8c', color: '#e91e8c' }}>
+            <Phone size={15} /> Call
           </a>
+          <Link href="/orders"
+            className="flex items-center justify-center gap-1.5 py-3 px-4 rounded-full font-semibold text-sm"
+            style={{ border: '2px solid #e91e8c', color: '#e91e8c' }}>
+            <MessageCircle size={15} /> Chat
+          </Link>
           <Link
             href={`/booking/alterations?tailorId=${tailor.id}&tailorName=${encodeURIComponent(tailor.name)}`}
-            className="flex items-center justify-center py-3 rounded-full text-white font-bold text-sm"
-            style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)', flex: 2 }}
-          >
+            className="flex items-center justify-center py-3 rounded-full text-white font-bold text-sm flex-1"
+            style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
             Book Now!
           </Link>
         </div>

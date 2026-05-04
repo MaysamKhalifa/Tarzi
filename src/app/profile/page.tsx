@@ -24,16 +24,16 @@ export default function ProfilePage() {
   const [newName, setNewName] = useState(profile?.full_name || '')
   const [saving, setSaving] = useState(false)
   const [activeModal, setActiveModal] = useState<ModalType>(null)
+  const [notifToggles, setNotifToggles] = useState({ orders: true, messages: true, promos: false, news: false })
 
   const handleLogout = async () => {
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
     } catch {
-      // ignore errors — still redirect
+      // ignore
     }
-    // Hard redirect to clear all client-side state
-    window.location.href = '/login'
+    window.location.replace('/login')
   }
 
   const handleSaveName = async () => {
@@ -80,21 +80,24 @@ export default function ProfilePage() {
     notifications: {
       title: 'Notifications',
       content: (
-        <div className="flex flex-col gap-4">
-          {[
-            { label: 'Order updates', desc: 'Get notified when your order status changes', on: true },
-            { label: 'Tailor messages', desc: 'Receive chat messages from your tailor', on: true },
-            { label: 'Promotions', desc: 'Special offers and discounts', on: false },
-            { label: 'App news', desc: 'New features and updates', on: false },
-          ].map(item => (
-            <div key={item.label} className="flex items-center justify-between p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
+        <div className="flex flex-col gap-3">
+          {([
+            { key: 'orders' as const, label: 'Order updates', desc: 'Get notified when your order status changes' },
+            { key: 'messages' as const, label: 'Tailor messages', desc: 'Receive chat messages from your tailor' },
+            { key: 'promos' as const, label: 'Promotions', desc: 'Special offers and discounts' },
+            { key: 'news' as const, label: 'App news', desc: 'New features and updates' },
+          ]).map(item => (
+            <div key={item.key} className="flex items-center justify-between p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{item.label}</p>
                 <p style={{ fontSize: 12, color: '#9e9e9e' }}>{item.desc}</p>
               </div>
-              <div className="w-12 h-6 rounded-full relative transition-all" style={{ background: item.on ? '#e91e8c' : '#e0e0e0' }}>
-                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white" style={{ left: item.on ? '26px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
-              </div>
+              <button onClick={() => setNotifToggles(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
+                className="w-12 h-6 rounded-full relative transition-all flex-shrink-0"
+                style={{ background: notifToggles[item.key] ? '#e91e8c' : '#e0e0e0' }}>
+                <span className="absolute top-0.5 w-5 h-5 rounded-full bg-white"
+                  style={{ left: notifToggles[item.key] ? '26px' : '2px', transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+              </button>
             </div>
           ))}
           <p style={{ fontSize: 11, color: '#bbb', textAlign: 'center' }}>Push notifications coming soon in the mobile app</p>
@@ -295,7 +298,7 @@ export default function ProfilePage() {
         </button>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 4 }}>
-          Tarzi v1.0.0 • Made with ❤️ in Dubai
+          Tarzi v1.0.0
         </p>
       </div>
 

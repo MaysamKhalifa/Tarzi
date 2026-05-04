@@ -43,6 +43,14 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
   const [selectedTailor, setSelectedTailor] = useState(preselectedTailor)
   const [uploading, setUploading] = useState(false)
   const [added, setAdded] = useState(false)
+  const [manualMeasurements, setManualMeasurements] = useState({
+    profileName: '',
+    chest: '', waist: '', hips: '', shoulder: '', armLength: '',
+    neck: '', inseam: '', height: '', weight: '',
+  })
+  const [savingManual, setSavingManual] = useState(false)
+  const updateManual = (k: keyof typeof manualMeasurements, v: string) =>
+    setManualMeasurements(prev => ({ ...prev, [k]: v }))
 
   const garmentList = svcKey === 'upcycling'
     ? UPCYCLING_ITEMS
@@ -237,6 +245,100 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                   </select>
                   <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" color="#9e9e9e" />
                 </div>
+              </div>
+            )}
+
+            {/* Manual measurement entry when user picks "No" */}
+            {autoFill === 'no' && (
+              <div className="mt-4 p-4 rounded-2xl" style={{ background: '#f9f9f9', border: '1.5px solid #f0f0f0' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>
+                  Enter Your Measurements
+                </p>
+                <p style={{ fontSize: 11, color: '#9e9e9e', marginBottom: 12 }}>
+                  All fields in cm — fill what you know, skip the rest.
+                </p>
+
+                {/* Profile name */}
+                <div className="mb-3">
+                  <label style={{ fontSize: 11, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>Profile name (e.g. "My Measurements")</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. My Measurements"
+                    value={manualMeasurements.profileName ?? ''}
+                    onChange={e => updateManual('profileName' as keyof typeof manualMeasurements, e.target.value)}
+                    style={{ ...inputStyle, fontSize: 13 }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {([
+                    { key: 'chest', label: 'Chest (cm)' },
+                    { key: 'waist', label: 'Waist (cm)' },
+                    { key: 'hips', label: 'Hips (cm)' },
+                    { key: 'shoulder', label: 'Shoulder width (cm)' },
+                    { key: 'armLength', label: 'Arm length (cm)' },
+                    { key: 'neck', label: 'Neck (cm)' },
+                    { key: 'inseam', label: 'Inseam (cm)' },
+                    { key: 'height', label: 'Height (cm)' },
+                    { key: 'weight', label: 'Weight (kg)' },
+                  ] as { key: keyof typeof manualMeasurements; label: string }[]).map(({ key, label }) => (
+                    <div key={key}>
+                      <label style={{ fontSize: 10, fontWeight: 600, color: '#555', display: 'block', marginBottom: 3 }}>{label}</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        placeholder="—"
+                        value={manualMeasurements[key]}
+                        onChange={e => updateManual(key, e.target.value)}
+                        style={{ ...inputStyle, fontSize: 13, padding: '10px 12px' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!user) return
+                    setSavingManual(true)
+                    const supabase = createClient()
+                    const { data, error } = await supabase
+                      .from('measurements')
+                      .insert({
+                        user_id: user.id,
+                        name: (manualMeasurements as Record<string, string>).profileName || 'My Measurements',
+                        gender,
+                        chest: manualMeasurements.chest ? parseFloat(manualMeasurements.chest) : null,
+                        waist: manualMeasurements.waist ? parseFloat(manualMeasurements.waist) : null,
+                        hips: manualMeasurements.hips ? parseFloat(manualMeasurements.hips) : null,
+                        shoulder_width: manualMeasurements.shoulder ? parseFloat(manualMeasurements.shoulder) : null,
+                        arm_length: manualMeasurements.armLength ? parseFloat(manualMeasurements.armLength) : null,
+                        neck: manualMeasurements.neck ? parseFloat(manualMeasurements.neck) : null,
+                        inseam: manualMeasurements.inseam ? parseFloat(manualMeasurements.inseam) : null,
+                        height: manualMeasurements.height ? parseFloat(manualMeasurements.height) : null,
+                        weight: manualMeasurements.weight ? parseFloat(manualMeasurements.weight) : null,
+                        is_default: false,
+                      })
+                      .select('id')
+                      .single()
+                    if (data && !error) {
+                      setSelectedMeasurement(data.id)
+                    }
+                    setSavingManual(false)
+                  }}
+                  disabled={savingManual}
+                  className="mt-4 w-full py-2.5 rounded-xl font-semibold text-sm transition-all"
+                  style={{
+                    background: savingManual ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
+                    color: 'white',
+                  }}>
+                  {savingManual ? 'Saving...' : selectedMeasurement ? '✓ Measurements Saved!' : 'Save Measurements'}
+                </button>
+
+                {selectedMeasurement && (
+                  <p style={{ fontSize: 11, color: '#4caf50', textAlign: 'center', marginTop: 6, fontWeight: 600 }}>
+                    ✓ Saved and linked to your order
+                  </p>
+                )}
               </div>
             )}
           </div>
