@@ -11,20 +11,21 @@ import { useLanguage } from '@/lib/context/LanguageContext'
 import type { Measurement } from '@/types/database'
 
 export default function MeasurementsPage() {
-  const { user } = useApp()
+  const { user, loading: authLoading } = useApp()
   const { t } = useLanguage()
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (authLoading) return
+    if (!user) { setLoading(false); return }
     const supabase = createClient()
     supabase.from('measurements').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setMeasurements(data || [])
+      .then(({ data, error }) => {
+        if (!error) setMeasurements(data || [])
         setLoading(false)
       })
-  }, [user])
+  }, [user, authLoading])
 
   return (
     <div className="min-h-dvh bg-white pb-24">

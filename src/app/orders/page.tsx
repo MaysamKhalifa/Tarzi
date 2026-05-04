@@ -13,44 +13,68 @@ import type { Order } from '@/types/database'
 type Tab = 'in_progress' | 'done'
 
 const STATUS_CONFIG = {
-  pending: { label: 'Pending', color: '#f57c00', bg: '#fff3e0', icon: Clock },
-  confirmed: { label: 'Confirmed', color: '#1565c0', bg: '#e3f2fd', icon: CheckCircle },
+  pending:     { label: 'Pending',     color: '#f57c00', bg: '#fff3e0', icon: Clock },
+  confirmed:   { label: 'Confirmed',   color: '#1565c0', bg: '#e3f2fd', icon: CheckCircle },
   in_progress: { label: 'In Progress', color: '#7b1fa2', bg: '#f3e5f5', icon: Scissors },
-  ready: { label: 'Ready', color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
-  delivered: { label: 'Delivered', color: '#2e7d32', bg: '#e8f5e9', icon: Truck },
-  cancelled: { label: 'Cancelled', color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
+  ready:       { label: 'Ready',       color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
+  delivered:   { label: 'Delivered',   color: '#2e7d32', bg: '#e8f5e9', icon: Truck },
+  cancelled:   { label: 'Cancelled',   color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
 }
 
 const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling: RefreshCw }
 
 export default function OrdersPage() {
-  const { user } = useApp()
+  // Pull both user AND the auth-loading flag from context
+  const { user, loading: authLoading } = useApp()
   const { t } = useLanguage()
   const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
+  const [ordersLoading, setOrdersLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
   const [tab, setTab] = useState<Tab>('in_progress')
 
   useEffect(() => {
-    if (!user) return
+    // Wait until Supabase auth has resolved
+    if (authLoading) return
+
+    // Auth done but no user → stop loading immediately
+    if (!user) {
+      setOrdersLoading(false)
+      return
+    }
+
+    setOrdersLoading(true)
+    setFetchError('')
+
     const supabase = createClient()
-    supabase.from('orders').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setOrders(data || [])
-        setLoading(false)
+    supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Orders fetch error:', error)
+          setFetchError(error.message)
+        } else {
+          setOrders(data || [])
+        }
+        setOrdersLoading(false)
       })
-  }, [user])
+  }, [user, authLoading])
 
   const doneStatuses = ['delivered', 'cancelled']
   const inProgress = orders.filter(o => !doneStatuses.includes(o.status))
-  const done = orders.filter(o => doneStatuses.includes(o.status))
-  const displayed = tab === 'in_progress' ? inProgress : done
+  const done       = orders.filter(o =>  doneStatuses.includes(o.status))
+  const displayed  = tab === 'in_progress' ? inProgress : done
 
   return (
     <div className="min-h-dvh bg-white pb-24">
       {/* Pink header */}
       <div className="px-5 pt-12 pb-5"
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 12 }}>{t('orders', 'title')}</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white', marginBottom: 12 }}>
+          {t('orders', 'title')}
+        </h1>
         <div className="flex gap-1 p-1 rounded-2xl" style={{ background: 'rgba(255,255,255,0.2)' }}>
           {([['in_progress', t('orders', 'in_progress')], ['done', t('orders', 'done')]] as [Tab, string][]).map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
@@ -59,18 +83,65 @@ export default function OrdersPage() {
                 background: tab === key ? 'white' : 'transparent',
                 color: tab === key ? '#e91e8c' : 'rgba(255,255,255,0.8)',
               }}>
-              {label} {key === 'in_progress' ? `(${inProgress.length})` : `(${done.length})`}
+              {label} ({key === 'in_progress' ? inProgress.length : done.length})
             </button>
           ))}
         </div>
       </div>
 
       <div className="px-5 py-4">
-        {loading ? (
-          <div className="flex justify-center py-16">
+        {/* Auth loading — wait for user session */}
+        {(authLoading || ordersLoading) ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-10 h-10 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
+            <p style={{ fontSize: 13, color: '#9e9e9e' }}>Loading your orders…</p>
+          </div>
+        ) : !user ? (
+          /* Not logged in */
+          <div className="text-center py-16">
+            <Package size={48} color="#e8e8e8" className="mx-auto mb-4" />
+            <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
+              Sign in to view orders
+            </p>
+            <p style={{ color: '#9e9e9e', fontSize: 13, marginBottom: 20 }}>
+              Your orders will appear here once you log in
+            </p>
+            <Link href="/login"
+              className="px-6 py-3 rounded-full text-white font-bold text-sm inline-block"
+              style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+              Log In
+            </Link>
+          </div>
+        ) : fetchError ? (
+          /* Fetch error */
+          <div className="text-center py-12">
+            <div className="px-4 py-3 rounded-xl mb-4 text-sm"
+              style={{ background: '#fff0f0', color: '#d32f2f', border: '1px solid #ffcdd2' }}>
+              ⚠️ Could not load orders: {fetchError}
+            </div>
+            <button
+              onClick={() => {
+                setOrdersLoading(true)
+                setFetchError('')
+                const supabase = createClient()
+                supabase
+                  .from('orders')
+                  .select('*')
+                  .eq('user_id', user!.id)
+                  .order('created_at', { ascending: false })
+                  .then(({ data, error }) => {
+                    if (error) setFetchError(error.message)
+                    else setOrders(data || [])
+                    setOrdersLoading(false)
+                  })
+              }}
+              className="px-6 py-2.5 rounded-full text-white font-semibold text-sm"
+              style={{ background: '#e91e8c' }}>
+              Try Again
+            </button>
           </div>
         ) : displayed.length === 0 ? (
+          /* No orders in this tab */
           <div className="text-center py-16">
             <Package size={48} color="#e8e8e8" className="mx-auto mb-4" />
             <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
@@ -88,6 +159,7 @@ export default function OrdersPage() {
             )}
           </div>
         ) : (
+          /* Order cards */
           <div className="flex flex-col gap-3">
             {displayed.map(order => {
               const StatusCfg = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
@@ -116,7 +188,7 @@ export default function OrdersPage() {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: 12, color: '#555' }} className="flex flex-col gap-1">
+                  <div style={{ fontSize: 12, color: '#555' }} className="flex flex-col gap-1 mb-3">
                     <span>🧵 {order.service_type.replace('_', ' ')} • {order.tailor_name}</span>
                     {order.pickup_date && (
                       <span>📅 Pickup: {new Date(order.pickup_date).toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: 'numeric' })} at {order.pickup_time}</span>
@@ -124,7 +196,7 @@ export default function OrdersPage() {
                     {order.price && <span>💰 AED {order.price}</span>}
                   </div>
 
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex gap-2">
                     <Link href={`/chat/${order.id}`}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold"
                       style={{ background: '#fce4ec', color: '#e91e8c' }}>

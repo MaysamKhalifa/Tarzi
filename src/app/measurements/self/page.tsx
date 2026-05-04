@@ -31,33 +31,43 @@ export default function MeasureBySelfPage() {
 
   const update = (k: keyof MeasurementFields, v: string) => setFields(f => ({ ...f, [k]: v }))
 
+  const parseNum = (v: string) => {
+    const n = parseFloat(v.replace(',', '.').trim())
+    return isNaN(n) ? null : n
+  }
+
   const handleSave = async () => {
     if (!name.trim()) { setError('Please enter a name for this measurement profile'); return }
-    if (!user) { setError('Please log in'); return }
+    if (!user) { setError('Please log in to save measurements'); return }
     setSaving(true)
     setError('')
     const supabase = createClient()
-    const { error } = await supabase.from('measurements').insert({
+    const payload = {
       user_id: user.id,
-      name,
+      name: name.trim(),
       gender,
-      chest: fields.chest ? +fields.chest : null,
-      waist: fields.waist ? +fields.waist : null,
-      hips: fields.hips ? +fields.hips : null,
-      shoulder_width: fields.shoulder ? +fields.shoulder : null,
-      arm_length: fields.armLength ? +fields.armLength : null,
-      neck: fields.neck ? +fields.neck : null,
-      inseam: fields.inseam ? +fields.inseam : null,
-      thigh: fields.thigh ? +fields.thigh : null,
-      height: fields.height ? +fields.height : null,
-      weight: fields.weight ? +fields.weight : null,
-      notes: fields.notes || null,
+      chest: parseNum(fields.chest),
+      waist: parseNum(fields.waist),
+      hips: parseNum(fields.hips),
+      shoulder_width: parseNum(fields.shoulder),
+      arm_length: parseNum(fields.armLength),
+      neck: parseNum(fields.neck),
+      inseam: parseNum(fields.inseam),
+      thigh: parseNum(fields.thigh),
+      height: parseNum(fields.height),
+      weight: parseNum(fields.weight),
+      notes: fields.notes.trim() || null,
       is_default: isDefault,
-    })
+    }
+    const { error: insertError } = await supabase.from('measurements').insert(payload)
     setSaving(false)
-    if (error) { setError(error.message); return }
+    if (insertError) {
+      console.error('Measurements save error:', insertError)
+      setError(`Save failed: ${insertError.message}`)
+      return
+    }
     setSuccess(true)
-    setTimeout(() => router.push('/measurements'), 1200)
+    setTimeout(() => router.push('/measurements'), 1400)
   }
 
   const inputStyle = {
@@ -74,8 +84,17 @@ export default function MeasureBySelfPage() {
     <div>
       <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 5 }}>{label}</label>
       <div className="relative">
-        <input type="number" value={fields[field]} onChange={e => update(field, e.target.value)}
-          placeholder="0" style={{ ...inputStyle, paddingRight: 40 }}
+        <input
+          type="text"
+          inputMode="decimal"
+          value={fields[field]}
+          onChange={e => {
+            // Allow digits, one dot/comma, and empty string
+            const v = e.target.value
+            if (v === '' || /^[\d.,]*$/.test(v)) update(field, v)
+          }}
+          placeholder="e.g. 90"
+          style={{ ...inputStyle, paddingRight: 40 }}
           onFocus={e => (e.target.style.borderColor = '#e91e8c')}
           onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
         />

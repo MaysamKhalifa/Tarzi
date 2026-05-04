@@ -536,11 +536,14 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                   <div key={key}>
                     <label style={{ fontSize: 10, fontWeight: 600, color: '#555', display: 'block', marginBottom: 3 }}>{label}</label>
                     <input
-                      type="number"
+                      type="text"
                       inputMode="decimal"
-                      placeholder="—"
+                      placeholder="e.g. 90"
                       value={manualMeasurements[key]}
-                      onChange={e => updateManual(key, e.target.value)}
+                      onChange={e => {
+                        const v = e.target.value
+                        if (v === '' || /^[\d.,]*$/.test(v)) updateManual(key, v)
+                      }}
                       style={{ ...inputStyle, fontSize: 13, padding: '10px 12px' }}
                     />
                   </div>
@@ -558,15 +561,15 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                       user_id: user.id,
                       name: manualMeasurements.profileName || 'My Measurements',
                       gender,
-                      chest: manualMeasurements.chest ? parseFloat(manualMeasurements.chest) : null,
-                      waist: manualMeasurements.waist ? parseFloat(manualMeasurements.waist) : null,
-                      hips: manualMeasurements.hips ? parseFloat(manualMeasurements.hips) : null,
-                      shoulder_width: manualMeasurements.shoulder ? parseFloat(manualMeasurements.shoulder) : null,
-                      arm_length: manualMeasurements.armLength ? parseFloat(manualMeasurements.armLength) : null,
-                      neck: manualMeasurements.neck ? parseFloat(manualMeasurements.neck) : null,
-                      inseam: manualMeasurements.inseam ? parseFloat(manualMeasurements.inseam) : null,
-                      height: manualMeasurements.height ? parseFloat(manualMeasurements.height) : null,
-                      weight: manualMeasurements.weight ? parseFloat(manualMeasurements.weight) : null,
+                      chest: manualMeasurements.chest ? parseFloat(manualMeasurements.chest.replace(',', '.')) : null,
+                      waist: manualMeasurements.waist ? parseFloat(manualMeasurements.waist.replace(',', '.')) : null,
+                      hips: manualMeasurements.hips ? parseFloat(manualMeasurements.hips.replace(',', '.')) : null,
+                      shoulder_width: manualMeasurements.shoulder ? parseFloat(manualMeasurements.shoulder.replace(',', '.')) : null,
+                      arm_length: manualMeasurements.armLength ? parseFloat(manualMeasurements.armLength.replace(',', '.')) : null,
+                      neck: manualMeasurements.neck ? parseFloat(manualMeasurements.neck.replace(',', '.')) : null,
+                      inseam: manualMeasurements.inseam ? parseFloat(manualMeasurements.inseam.replace(',', '.')) : null,
+                      height: manualMeasurements.height ? parseFloat(manualMeasurements.height.replace(',', '.')) : null,
+                      weight: manualMeasurements.weight ? parseFloat(manualMeasurements.weight.replace(',', '.')) : null,
                       is_default: false,
                     })
                     .select('id')
