@@ -26,15 +26,37 @@ export const FEMALE_GARMENTS = [
   'Other (specify in comments)',
 ]
 
-export const UPCYCLING_ITEMS = [
-  'Abaya',
-  'Dress',
+export const MALE_UPCYCLING_ITEMS = [
   'Kandoora',
   'Suit',
   'Jacket',
-  'Skirt',
-  'Blouse',
   'Shirt',
   'Trousers',
+  'Thobe',
+  'Denim Jacket',
+  'Denim Jeans',
+  'Bisht',
+  'Vest',
+  'Shorts',
   'Other (specify in comments)',
+]
+
+export const FEMALE_UPCYCLING_ITEMS = [
+  'Abaya',
+  'Dress',
+  'Skirt',
+  'Blouse',
+  'Gown',
+  'Kaftan',
+  'Jalabiya',
+  'Denim Jacket',
+  'Denim Jeans',
+  'Tunic',
+  'Coat',
+  'Other (specify in comments)',
+]
+
+// Kept for backward compat
+export const UPCYCLING_ITEMS = [
+  ...new Set([...FEMALE_UPCYCLING_ITEMS, ...MALE_UPCYCLING_ITEMS]),
 ]
