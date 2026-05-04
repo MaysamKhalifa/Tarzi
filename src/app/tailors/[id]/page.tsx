@@ -5,19 +5,23 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MapPin, Star, Clock, Phone, Heart, ChevronLeft, Scissors, Check, MessageCircle } from 'lucide-react'
 import { SAMPLE_TAILORS, TAILOR_REVIEWS } from '@/lib/data/tailors'
+import { translateTailorFields, translateReviewComment } from '@/lib/data/tailorTranslations'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
+import { useLanguage } from '@/lib/context/LanguageContext'
 
 export default function TailorProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
   const { user } = useApp()
+  const { lang, t: tl } = useLanguage()
   const [saved, setSaved] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'about' | 'reviews'>('about')
 
   const tailor = SAMPLE_TAILORS.find(t => t.id === id)
   const reviews = TAILOR_REVIEWS.filter(r => r.tailor_id === id)
+  const td = tailor ? translateTailorFields(tailor, lang) : null
 
   useEffect(() => {
     if (!user || !tailor) return
@@ -32,15 +36,23 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
   }, [user, id, tailor])
 
   const toggleSave = async () => {
-    if (!user || saveLoading) return
+    if (saveLoading) return
+    if (!user) {
+      window.location.href = '/login'
+      return
+    }
     setSaveLoading(true)
     const supabase = createClient()
-    if (saved) {
-      await supabase.from('saved_tailors').delete().eq('user_id', user.id).eq('tailor_id', id)
-      setSaved(false)
-    } else {
-      await supabase.from('saved_tailors').insert({ user_id: user.id, tailor_id: id })
-      setSaved(true)
+    try {
+      if (saved) {
+        const { error } = await supabase.from('saved_tailors').delete().eq('user_id', user.id).eq('tailor_id', id)
+        if (!error) setSaved(false)
+      } else {
+        const { error } = await supabase.from('saved_tailors').insert({ user_id: user.id, tailor_id: id })
+        if (!error) setSaved(true)
+      }
+    } catch {
+      // ignore
     }
     setSaveLoading(false)
   }
@@ -93,7 +105,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1a1a1a' }}>{tailor.name}</h1>
           <div className="flex items-center justify-center gap-2 mt-1">
             <MapPin size={13} color="#9e9e9e" />
-            <span style={{ fontSize: 13, color: '#9e9e9e' }}>{tailor.location}</span>
+            <span style={{ fontSize: 13, color: '#9e9e9e' }}>{td?.location || tailor.location}</span>
             <span style={{ fontSize: 12, color: '#e91e8c', fontWeight: 700 }}>
               • {tailor.distance_km < 1 ? `${tailor.distance_km * 1000}m` : `${tailor.distance_km}km`}
             </span>
@@ -115,9 +127,9 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Experience', value: `${tailor.experience_years} yrs` },
-            { label: 'Reviews', value: tailor.review_count.toString() },
-            { label: 'Status', value: tailor.is_available ? 'Available' : 'Busy' },
+            { label: tl('tailor_profile', 'experience'), value: `${tailor.experience_years} ${tl('common', 'yrs_exp')}` },
+            { label: tl('tailor_profile', 'reviews'), value: tailor.review_count.toString() },
+            { label: tl('tailor_profile', 'status'), value: tailor.is_available ? tl('common', 'available') : tl('common', 'busy') },
           ].map(stat => (
             <div key={stat.label} className="text-center p-3 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <p style={{ fontSize: 16, fontWeight: 800, color: stat.label === 'Status' && !tailor.is_available ? '#f44336' : '#1a1a1a' }}>
@@ -138,7 +150,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
                 color: activeTab === tab ? '#e91e8c' : '#9e9e9e',
                 boxShadow: activeTab === tab ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
               }}>
-              {tab} {tab === 'reviews' ? `(${reviews.length})` : ''}
+              {tab === 'about' ? tl('tailor_profile', 'about') : tl('tailor_profile', 'reviews_tab')} {tab === 'reviews' ? `(${reviews.length})` : ''}
             </button>
           ))}
         </div>
@@ -149,18 +161,18 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
             <div className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <div className="flex items-center gap-2 mb-2">
                 <Clock size={16} color="#e91e8c" />
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>Availability</p>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>{tl('tailor_profile', 'availability')}</p>
               </div>
-              <p style={{ fontSize: 13, color: '#555' }}>{tailor.availability}</p>
-              <p style={{ fontSize: 13, color: '#555' }}>{tailor.availability_hours}</p>
+              <p style={{ fontSize: 13, color: '#555' }}>{td?.availability || tailor.availability}</p>
+              <p style={{ fontSize: 13, color: '#555' }}>{td?.availability_hours || tailor.availability_hours}</p>
             </div>
 
             {/* Expertise */}
             <div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>Expertise</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>{tl('tailor_profile', 'expertise')}</p>
               <div className="flex flex-wrap gap-2">
-                {tailor.expertise.map(e => (
-                  <span key={e} className="flex items-center gap-1 px-3 py-1.5 rounded-xl"
+                {(td?.expertise || tailor.expertise).map((e, i) => (
+                  <span key={i} className="flex items-center gap-1 px-3 py-1.5 rounded-xl"
                     style={{ background: '#fce4ec', fontSize: 12, color: '#e91e8c', fontWeight: 600 }}>
                     <Check size={11} /> {e}
                   </span>
@@ -170,11 +182,11 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
 
             {/* Services */}
             <div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>Services</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 10 }}>{tl('tailor_profile', 'services')}</p>
               <div className="flex flex-wrap gap-2">
                 {tailor.specialties.map(s => (
                   <span key={s} style={{ background: '#f3e5f5', color: '#7b1fa2', padding: '6px 14px', borderRadius: 50, fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>
-                    {s.replace('_', ' ')}
+                    {s === 'alterations' ? tl('home', 'alterations') : s === 'from_scratch' ? tl('home', 'from_scratch') : tl('home', 'upcycling')}
                   </span>
                 ))}
               </div>
@@ -193,12 +205,14 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
                     ))}
                   </div>
                 </div>
-                <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{r.comment}</p>
+                <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>
+                  {translateReviewComment(id, i, r.comment, lang)}
+                </p>
                 <p style={{ fontSize: 11, color: '#bbb', marginTop: 6 }}>{r.created_at}</p>
               </div>
             )) : (
               <div className="text-center py-8">
-                <p style={{ color: '#9e9e9e', fontSize: 14 }}>No reviews yet</p>
+                <p style={{ color: '#9e9e9e', fontSize: 14 }}>{tl('tailor_profile', 'no_reviews')}</p>
               </div>
             )}
           </div>
@@ -212,18 +226,18 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
           <a href={`tel:${tailor.phone}`}
             className="flex items-center justify-center gap-1.5 py-3 px-4 rounded-full font-semibold text-sm"
             style={{ border: '2px solid #e91e8c', color: '#e91e8c' }}>
-            <Phone size={15} /> Call
+            <Phone size={15} /> {tl('tailor_profile', 'call')}
           </a>
-          <Link href="/orders"
+          <Link href={`/orders`}
             className="flex items-center justify-center gap-1.5 py-3 px-4 rounded-full font-semibold text-sm"
             style={{ border: '2px solid #e91e8c', color: '#e91e8c' }}>
-            <MessageCircle size={15} /> Chat
+            <MessageCircle size={15} /> {tl('orders', 'chat')}
           </Link>
           <Link
             href={`/booking/alterations?tailorId=${tailor.id}&tailorName=${encodeURIComponent(tailor.name)}`}
             className="flex items-center justify-center py-3 rounded-full text-white font-bold text-sm flex-1"
             style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-            Book Now!
+            {tl('tailor_profile', 'book')}
           </Link>
         </div>
       </div>

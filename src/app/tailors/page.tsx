@@ -6,6 +6,7 @@ import { Search, MapPin, Star, Scissors, Heart } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
 import PageHeader from '@/components/layout/PageHeader'
 import { SAMPLE_TAILORS } from '@/lib/data/tailors'
+import { translateTailorFields } from '@/lib/data/tailorTranslations'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
 import { useLanguage } from '@/lib/context/LanguageContext'
@@ -14,7 +15,7 @@ type ServiceFilter = 'all' | 'alterations' | 'from_scratch' | 'upcycling'
 
 export default function TailorsPage() {
   const { user } = useApp()
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<ServiceFilter>('all')
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
@@ -36,25 +37,35 @@ export default function TailorsPage() {
   const toggleSave = async (e: React.MouseEvent, tailorId: string) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!user || savingId) return
+    if (savingId) return
+    if (!user) {
+      // Redirect to login if not authenticated
+      window.location.href = '/login'
+      return
+    }
     setSavingId(tailorId)
     const supabase = createClient()
-    if (savedIds.has(tailorId)) {
-      await supabase.from('saved_tailors').delete().eq('user_id', user.id).eq('tailor_id', tailorId)
-      setSavedIds(prev => { const s = new Set(prev); s.delete(tailorId); return s })
-    } else {
-      await supabase.from('saved_tailors').insert({ user_id: user.id, tailor_id: tailorId })
-      setSavedIds(prev => new Set([...prev, tailorId]))
+    try {
+      if (savedIds.has(tailorId)) {
+        const { error } = await supabase.from('saved_tailors').delete().eq('user_id', user.id).eq('tailor_id', tailorId)
+        if (!error) setSavedIds(prev => { const s = new Set(prev); s.delete(tailorId); return s })
+      } else {
+        const { error } = await supabase.from('saved_tailors').insert({ user_id: user.id, tailor_id: tailorId })
+        if (!error) setSavedIds(prev => new Set([...prev, tailorId]))
+      }
+    } catch {
+      // Silent fail — state already optimistically updated
     }
     setSavingId(null)
   }
 
-  const tailors = SAMPLE_TAILORS.filter(t => {
+  const tailors = SAMPLE_TAILORS.filter(tailor => {
+    const translated = translateTailorFields(tailor, lang)
     const matchSearch =
-      t.name.toLowerCase().includes(search.toLowerCase()) ||
-      t.area.toLowerCase().includes(search.toLowerCase()) ||
-      t.expertise.some(e => e.toLowerCase().includes(search.toLowerCase()))
-    const matchFilter = filter === 'all' || t.specialties.includes(filter as 'alterations' | 'from_scratch' | 'upcycling')
+      tailor.name.toLowerCase().includes(search.toLowerCase()) ||
+      translated.area.toLowerCase().includes(search.toLowerCase()) ||
+      translated.expertise.some(e => e.toLowerCase().includes(search.toLowerCase()))
+    const matchFilter = filter === 'all' || tailor.specialties.includes(filter as 'alterations' | 'from_scratch' | 'upcycling')
     return matchSearch && matchFilter
   })
 
@@ -108,6 +119,7 @@ export default function TailorsPage() {
         {tailors.map(tailor => {
           const isSaved = savedIds.has(tailor.id)
           const isSaving = savingId === tailor.id
+          const td = translateTailorFields(tailor, lang)
           return (
             <Link key={tailor.id} href={`/tailors/${tailor.id}`}
               className="flex gap-4 p-4 rounded-2xl transition-all relative"
@@ -135,7 +147,7 @@ export default function TailorsPage() {
 
                 <div className="flex items-center gap-1 mt-1">
                   <MapPin size={11} color="#9e9e9e" />
-                  <span style={{ fontSize: 12, color: '#9e9e9e' }}>{tailor.location}</span>
+                  <span style={{ fontSize: 12, color: '#9e9e9e' }}>{td.location}</span>
                   <span style={{ fontSize: 12, color: '#ddd' }}>•</span>
                   <span style={{ fontSize: 12, color: '#e91e8c', fontWeight: 600 }}>
                     {tailor.distance_km < 1 ? `${tailor.distance_km * 1000}m` : `${tailor.distance_km}km`}
@@ -152,7 +164,7 @@ export default function TailorsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {tailor.expertise.slice(0, 3).map(e => (
+                  {td.expertise.slice(0, 3).map(e => (
                     <span key={e} style={{ fontSize: 10, background: '#fce4ec', color: '#e91e8c', padding: '2px 8px', borderRadius: 50, fontWeight: 500 }}>
                       {e}
                     </span>

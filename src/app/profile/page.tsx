@@ -16,6 +16,39 @@ import LanguageSelector from '@/components/LanguageSelector'
 
 type ModalType = 'notifications' | 'payment' | 'settings' | 'help' | 'terms' | null
 
+function PhoneRow({ phone, onSave }: { phone: string; onSave: (v: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(phone)
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1 mt-0.5">
+        <input
+          type="tel"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          placeholder="+971 50 000 0000"
+          autoFocus
+          className="flex-1 px-2 py-1 rounded-lg text-xs outline-none min-w-0"
+          style={{ border: '1.5px solid #e91e8c', fontSize: 12 }}
+        />
+        <button
+          onClick={() => { onSave(val); setEditing(false) }}
+          className="px-2 py-1 rounded-lg text-white text-xs font-bold flex-shrink-0"
+          style={{ background: '#e91e8c', fontSize: 10 }}>✓</button>
+        <button onClick={() => setEditing(false)} className="text-xs text-gray-400 px-1">✕</button>
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center gap-1 mt-0.5">
+      <p style={{ fontSize: 12, color: '#bbb' }}>{phone || 'Add phone number'}</p>
+      <button onClick={() => { setVal(phone); setEditing(true) }}>
+        <Edit3 size={11} color="#ddd" />
+      </button>
+    </div>
+  )
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const { user, profile, refreshProfile } = useApp()
@@ -25,6 +58,39 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [activeModal, setActiveModal] = useState<ModalType>(null)
   const [notifToggles, setNotifToggles] = useState({ orders: true, messages: true, promos: false, news: false })
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setUploadingAvatar(true)
+    const supabase = createClient()
+    const ext = file.name.split('.').pop() || 'jpg'
+    const path = `avatars/${user.id}.${ext}`
+    try {
+      const { data, error } = await supabase.storage
+        .from('garment-images')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (!error && data) {
+        const { data: urlData } = supabase.storage.from('garment-images').getPublicUrl(data.path)
+        const url = urlData.publicUrl
+        setAvatarUrl(url)
+        await supabase.from('profiles').update({ avatar_url: url }).eq('id', user.id)
+        await refreshProfile()
+      }
+    } catch (err) {
+      console.error('Avatar upload failed:', err)
+    }
+    setUploadingAvatar(false)
+  }
+
+  const handleSavePhone = async (phone: string) => {
+    if (!user || !phone.trim()) return
+    const supabase = createClient()
+    await supabase.from('profiles').update({ phone }).eq('id', user.id)
+    await refreshProfile()
+  }
 
   const handleLogout = async () => {
     try {
@@ -210,14 +276,36 @@ export default function ProfilePage() {
         <div className="p-5 rounded-2xl bg-white" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.10)' }}>
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-                <span style={{ fontSize: 22, fontWeight: 800, color: 'white' }}>{initials}</span>
-              </div>
-              <button className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center"
-                style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
-                <Camera size={12} color="#e91e8c" />
-              </button>
+              <label htmlFor="avatar-upload" className="cursor-pointer block">
+                {(avatarUrl || profile?.avatar_url) ? (
+                  <img
+                    src={avatarUrl || profile?.avatar_url || ''}
+                    alt="Profile"
+                    className="w-16 h-16 rounded-full object-cover"
+                    style={{ border: '3px solid #fce4ec' }}
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full flex items-center justify-center"
+                    style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+                    <span style={{ fontSize: 22, fontWeight: 800, color: 'white' }}>{initials}</span>
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white flex items-center justify-center"
+                  style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.15)' }}>
+                  {uploadingAvatar ? (
+                    <div className="w-3 h-3 rounded-full border-2 border-pink-300 border-t-pink-600 animate-spin" />
+                  ) : (
+                    <Camera size={12} color="#e91e8c" />
+                  )}
+                </div>
+              </label>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
             </div>
             <div className="flex-1 min-w-0">
               {editingName ? (
@@ -242,7 +330,7 @@ export default function ProfilePage() {
                 </div>
               )}
               <p style={{ fontSize: 13, color: '#9e9e9e' }} className="truncate">{user?.email}</p>
-              {profile?.phone && <p style={{ fontSize: 12, color: '#bbb' }}>{profile.phone}</p>}
+              <PhoneRow phone={profile?.phone || ''} onSave={handleSavePhone} />
             </div>
           </div>
         </div>
