@@ -10,6 +10,7 @@ export interface Profile {
   city: string
   area: string
   avatar_url: string | null
+  role: 'customer' | 'tailor' | 'admin'
   created_at: string
   updated_at: string
 }
@@ -69,8 +70,8 @@ export interface TailorReview {
 export interface Order {
   id: string
   user_id: string
-  tailor_id: string
-  tailor_name: string
+  tailor_id: string | null
+  tailor_name: string | null
   service_type: ServiceType
   garment_type: string
   status: OrderStatus
@@ -79,6 +80,9 @@ export interface Order {
   measurement_id: string | null
   image_urls: string[]
   price: number | null
+  tailor_price: number | null
+  tailor_note: string | null
+  decline_reason: string | null
   pickup_date: string | null
   pickup_time: string | null
   pickup_address: string | null
@@ -92,8 +96,8 @@ export interface ChatMessage {
   id: string
   order_id: string
   sender_id: string
-  sender_type: 'user' | 'tailor'
-  sender_name: string
+  sender_type: 'customer' | 'tailor'
+  sender_name: string | null
   message: string
   created_at: string
 }

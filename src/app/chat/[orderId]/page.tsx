@@ -62,7 +62,7 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
     const { error } = await supabase.from('chat_messages').insert({
       order_id: orderId,
       sender_id: user.id,
-      sender_type: 'user',
+      sender_type: 'customer',
       sender_name: profile?.full_name || user.email || 'You',
       message: msg,
     })

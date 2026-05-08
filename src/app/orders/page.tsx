@@ -33,33 +33,49 @@ export default function OrdersPage() {
   const [tab, setTab] = useState<Tab>('in_progress')
 
   useEffect(() => {
-    // Wait until Supabase auth has resolved
     if (authLoading) return
-
-    // Auth done but no user → stop loading immediately
-    if (!user) {
-      setOrdersLoading(false)
-      return
-    }
+    if (!user) { setOrdersLoading(false); return }
 
     setOrdersLoading(true)
     setFetchError('')
 
     const supabase = createClient()
-    supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Orders fetch error:', error)
-          setFetchError(error.message)
-        } else {
-          setOrders(data || [])
-        }
-        setOrdersLoading(false)
+
+    const loadOrders = () => {
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Orders fetch error:', error)
+            setFetchError(error.message)
+          } else {
+            setOrders(data || [])
+          }
+          setOrdersLoading(false)
+        })
+    }
+
+    loadOrders()
+
+    // Realtime: update individual orders when tailor changes status/price
+    const channel = supabase
+      .channel(`customer-orders:${user.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders',
+        filter: `user_id=eq.${user.id}`,
+      }, payload => {
+        setOrders(prev =>
+          prev.map(o => o.id === (payload.new as Order).id ? (payload.new as Order) : o)
+        )
       })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [user, authLoading])
 
   const doneStatuses = ['delivered', 'cancelled']
@@ -189,11 +205,18 @@ export default function OrdersPage() {
                   </div>
 
                   <div style={{ fontSize: 12, color: '#555' }} className="flex flex-col gap-1 mb-3">
-                    <span>🧵 {order.service_type.replace('_', ' ')} • {order.tailor_name}</span>
+                    <span>🧵 {order.service_type.replace('_', ' ')} • {order.tailor_name || 'Pending assignment'}</span>
                     {order.pickup_date && (
                       <span>📅 Pickup: {new Date(order.pickup_date).toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: 'numeric' })} at {order.pickup_time}</span>
                     )}
-                    {order.price && <span>💰 AED {order.price}</span>}
+                    {order.tailor_price
+                      ? <span>💰 AED {order.tailor_price} <span style={{ color: '#9e9e9e' }}>(confirmed by tailor)</span></span>
+                      : order.price ? <span>💰 AED {order.price}</span> : null}
+                    {order.tailor_note && (
+                      <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '4px 8px', borderRadius: 6, marginTop: 2 }}>
+                        💬 Tailor note: {order.tailor_note}
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
