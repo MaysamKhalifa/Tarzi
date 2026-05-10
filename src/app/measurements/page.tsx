@@ -15,17 +15,52 @@ export default function MeasurementsPage() {
   const { t } = useLanguage()
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
 
   useEffect(() => {
+    // Wait until auth resolves
     if (authLoading) return
-    if (!user) { setLoading(false); return }
-    const supabase = createClient()
-    supabase.from('measurements').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (!error) setMeasurements(data || [])
-        setLoading(false)
-      })
-  }, [user, authLoading])
+
+    // Not logged in — stop loading, show empty state
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    const load = async () => {
+      setLoading(true)
+      setFetchError('')
+      try {
+        const supabase = createClient()
+        const { data, error } = await supabase
+          .from('measurements')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (cancelled) return
+
+        if (error) {
+          console.error('Measurements fetch error:', error)
+          setFetchError(error.message)
+        } else {
+          setMeasurements(data || [])
+        }
+      } catch (err) {
+        if (cancelled) return
+        console.error('Measurements unexpected error:', err)
+        setFetchError('Could not load measurements. Please try again.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+
+    return () => { cancelled = true }
+  }, [user?.id, authLoading]) // depend on user.id (stable), not user object (new ref each render)
 
   return (
     <div className="min-h-dvh bg-white pb-24">
@@ -83,11 +118,27 @@ export default function MeasurementsPage() {
             <div className="flex justify-center py-8">
               <div className="w-8 h-8 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
             </div>
+          ) : fetchError ? (
+            <div className="text-center py-10 rounded-2xl" style={{ background: '#fff0f0' }}>
+              <p style={{ color: '#d32f2f', fontSize: 14, fontWeight: 600 }}>Could not load measurements</p>
+              <p style={{ color: '#9e9e9e', fontSize: 12, marginTop: 4 }}>{fetchError}</p>
+              <button
+                onClick={() => { setLoading(true); setFetchError(''); window.location.reload() }}
+                className="mt-4 px-5 py-2 rounded-xl text-sm font-semibold"
+                style={{ background: '#fce4ec', color: '#e91e8c' }}>
+                Retry
+              </button>
+            </div>
           ) : measurements.length === 0 ? (
             <div className="text-center py-10 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <Ruler size={40} color="#ddd" className="mx-auto mb-3" />
               <p style={{ color: '#9e9e9e', fontSize: 14 }}>{t('measurements', 'no_measurements')}</p>
               <p style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>{t('measurements', 'add_first')}</p>
+              <Link href="/measurements/self"
+                className="inline-block mt-4 px-5 py-2 rounded-xl text-sm font-semibold"
+                style={{ background: '#fce4ec', color: '#e91e8c' }}>
+                Add your first profile
+              </Link>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -100,7 +151,9 @@ export default function MeasurementsPage() {
                   </div>
                   <div className="flex-1">
                     <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>{m.name}</p>
-                    <p style={{ fontSize: 12, color: '#9e9e9e', textTransform: 'capitalize' }}>{m.gender} • {new Date(m.created_at).toLocaleDateString()}</p>
+                    <p style={{ fontSize: 12, color: '#9e9e9e', textTransform: 'capitalize' }}>
+                      {m.gender} • {(m as Measurement & { unit?: string }).unit ?? 'cm'} • {new Date(m.created_at).toLocaleDateString()}
+                    </p>
                   </div>
                   {m.is_default && (
                     <span className="flex items-center gap-1 px-2 py-1 rounded-lg"

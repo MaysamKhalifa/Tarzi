@@ -16,6 +16,58 @@ interface MeasurementFields {
   height: string; weight: string; notes: string
 }
 
+const inputStyle: React.CSSProperties = {
+  border: '1.5px solid #e8e8e8',
+  background: '#fafafa',
+  borderRadius: 12,
+  padding: '12px 14px',
+  fontSize: 16,
+  width: '100%',
+  outline: 'none',
+  WebkitAppearance: 'none',
+}
+
+// ─── CRITICAL: MeasureField must be defined OUTSIDE the page component ────────
+// If defined inside, React creates a new function type on every keystroke/render,
+// which causes the input to be unmounted and remounted — dismissing the keyboard.
+interface MeasureFieldProps {
+  label: string
+  field: keyof MeasurementFields
+  fields: MeasurementFields
+  unit: Unit
+  update: (k: keyof MeasurementFields, v: string) => void
+}
+
+function MeasureField({ label, field, fields, unit, update }: MeasureFieldProps) {
+  return (
+    <div>
+      <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 5 }}>
+        {label}
+      </label>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={fields[field]}
+          onChange={e => update(field, e.target.value)}
+          placeholder={unit === 'cm' ? 'e.g. 90' : 'e.g. 35'}
+          style={{ ...inputStyle, paddingRight: 42 }}
+          onFocus={e => (e.target.style.borderColor = '#e91e8c')}
+          onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
+        />
+        <span style={{
+          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+          fontSize: 12, color: '#9e9e9e', fontWeight: 700, pointerEvents: 'none',
+        }}>
+          {field === 'weight' ? 'kg' : unit}
+        </span>
+      </div>
+    </div>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function MeasureBySelfPage() {
   const router = useRouter()
   const { user } = useApp()
@@ -44,75 +96,40 @@ export default function MeasureBySelfPage() {
     if (!user) { setError('Please log in to save measurements'); return }
     setSaving(true)
     setError('')
-    const supabase = createClient()
-    const payload = {
-      user_id: user.id,
-      name: name.trim(),
-      gender,
-      unit,
-      chest: parseNum(fields.chest),
-      waist: parseNum(fields.waist),
-      hips: parseNum(fields.hips),
-      shoulder_width: parseNum(fields.shoulder),
-      arm_length: parseNum(fields.armLength),
-      neck: parseNum(fields.neck),
-      inseam: parseNum(fields.inseam),
-      thigh: parseNum(fields.thigh),
-      height: parseNum(fields.height),
-      weight: parseNum(fields.weight),
-      notes: fields.notes.trim() || null,
-      is_default: isDefault,
+    try {
+      const supabase = createClient()
+      const payload = {
+        user_id: user.id,
+        name: name.trim(),
+        gender,
+        unit,
+        chest: parseNum(fields.chest),
+        waist: parseNum(fields.waist),
+        hips: parseNum(fields.hips),
+        shoulder_width: parseNum(fields.shoulder),
+        arm_length: parseNum(fields.armLength),
+        neck: parseNum(fields.neck),
+        inseam: parseNum(fields.inseam),
+        thigh: parseNum(fields.thigh),
+        height: parseNum(fields.height),
+        weight: parseNum(fields.weight),
+        notes: fields.notes.trim() || null,
+        is_default: isDefault,
+      }
+      const { error: insertError } = await supabase.from('measurements').insert(payload)
+      if (insertError) {
+        setError(`Save failed: ${insertError.message}`)
+        return
+      }
+      setSuccess(true)
+      setTimeout(() => router.push('/measurements'), 1400)
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.')
+      console.error('Measurements save error:', err)
+    } finally {
+      setSaving(false)
     }
-    const { error: insertError } = await supabase.from('measurements').insert(payload)
-    setSaving(false)
-    if (insertError) {
-      console.error('Measurements save error:', insertError)
-      setError(`Save failed: ${insertError.message}`)
-      return
-    }
-    setSuccess(true)
-    setTimeout(() => router.push('/measurements'), 1400)
   }
-
-  const inputStyle: React.CSSProperties = {
-    border: '1.5px solid #e8e8e8',
-    background: '#fafafa',
-    borderRadius: 12,
-    padding: '12px 14px',
-    fontSize: 16,        // Larger so mobile doesn't auto-zoom
-    width: '100%',
-    outline: 'none',
-    WebkitAppearance: 'none',
-  }
-
-  // Fix: no filtering in onChange — just store whatever user types.
-  // Validate only on save via parseNum().
-  // The key= prop prevents React from blurring the input on each keystroke.
-  const MeasureField = ({ label, field }: { label: string; field: keyof MeasurementFields }) => (
-    <div>
-      <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 5 }}>
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          key={field}
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          value={fields[field]}
-          onChange={e => update(field, e.target.value)}
-          placeholder={unit === 'cm' ? 'e.g. 90' : 'e.g. 35'}
-          style={{ ...inputStyle, paddingRight: 42 }}
-          onFocus={e => (e.target.style.borderColor = '#e91e8c')}
-          onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
-        />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2"
-          style={{ fontSize: 12, color: '#9e9e9e', fontWeight: 700, pointerEvents: 'none' }}>
-          {field === 'weight' ? 'kg' : unit}
-        </span>
-      </div>
-    </div>
-  )
 
   return (
     <div className="min-h-dvh bg-white pb-8">
@@ -141,7 +158,7 @@ export default function MeasureBySelfPage() {
         {/* Profile name */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-            Profile Name * <span style={{ color: '#9e9e9e', fontWeight: 400, fontSize: 11 }}>(e.g. "Khalifa" or "My Work Suit")</span>
+            Profile Name * <span style={{ color: '#9e9e9e', fontWeight: 400, fontSize: 11 }}>(e.g. &quot;Khalifa&quot; or &quot;My Work Suit&quot;)</span>
           </label>
           <input
             type="text"
@@ -196,12 +213,12 @@ export default function MeasureBySelfPage() {
         <div>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>Upper Body</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MeasureField label="Chest / Bust" field="chest" />
-            <MeasureField label="Waist" field="waist" />
-            <MeasureField label="Hips" field="hips" />
-            <MeasureField label="Shoulder Width" field="shoulder" />
-            <MeasureField label="Arm Length" field="armLength" />
-            <MeasureField label="Neck" field="neck" />
+            <MeasureField label="Chest / Bust" field="chest" fields={fields} unit={unit} update={update} />
+            <MeasureField label="Waist" field="waist" fields={fields} unit={unit} update={update} />
+            <MeasureField label="Hips" field="hips" fields={fields} unit={unit} update={update} />
+            <MeasureField label="Shoulder Width" field="shoulder" fields={fields} unit={unit} update={update} />
+            <MeasureField label="Arm Length" field="armLength" fields={fields} unit={unit} update={update} />
+            <MeasureField label="Neck" field="neck" fields={fields} unit={unit} update={update} />
           </div>
         </div>
 
@@ -209,8 +226,8 @@ export default function MeasureBySelfPage() {
         <div>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>Lower Body</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MeasureField label="Inseam" field="inseam" />
-            <MeasureField label="Thigh" field="thigh" />
+            <MeasureField label="Inseam" field="inseam" fields={fields} unit={unit} update={update} />
+            <MeasureField label="Thigh" field="thigh" fields={fields} unit={unit} update={update} />
           </div>
         </div>
 
@@ -218,8 +235,8 @@ export default function MeasureBySelfPage() {
         <div>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>General</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MeasureField label="Height" field="height" />
-            <MeasureField label="Weight (kg)" field="weight" />
+            <MeasureField label="Height" field="height" fields={fields} unit={unit} update={update} />
+            <MeasureField label="Weight (kg)" field="weight" fields={fields} unit={unit} update={update} />
           </div>
         </div>
 

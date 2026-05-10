@@ -69,7 +69,7 @@ export default function SavedTailorsPage() {
     }
 
     fetchSaved()
-  }, [user, authLoading])
+  }, [user?.id, authLoading])
 
   const handleRemove = async (tailorId: string) => {
     if (!user) return

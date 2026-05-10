@@ -79,22 +79,57 @@ export default function TailorsPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [tailors, setTailors] = useState<DisplayTailor[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
 
   // Load tailors from Supabase
   useEffect(() => {
-    const supabase = createClient()
-    supabase
-      .from('profiles')
-      .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
-      .eq('role', 'tailor')
-      .eq('onboarding_complete', true)
-      .eq('is_approved', true)
-      .then(({ data, error }) => {
-        if (!error && data) {
+    let cancelled = false
+
+    const load = async () => {
+      setLoading(true)
+      setFetchError('')
+      try {
+        const supabase = createClient()
+
+        // First try: approved tailors only
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
+          .eq('role', 'tailor')
+          .eq('is_approved', true)
+
+        if (cancelled) return
+
+        if (error) {
+          console.error('Tailors fetch error:', error)
+          // If is_approved column doesn't exist yet, fall back to all tailors
+          if (error.message.includes('is_approved') || error.code === '42703') {
+            const { data: fallback, error: fallbackError } = await supabase
+              .from('profiles')
+              .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
+              .eq('role', 'tailor')
+            if (!cancelled) {
+              if (!fallbackError && fallback) setTailors((fallback as TailorRow[]).map(mapToDisplay))
+              else setFetchError(fallbackError?.message || 'Could not load tailors')
+            }
+          } else {
+            setFetchError(error.message)
+          }
+        } else {
           setTailors((data as TailorRow[]).map(mapToDisplay))
         }
-        setLoading(false)
-      })
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Tailors unexpected error:', err)
+          setFetchError('Could not load tailors. Please check your connection.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
   }, [])
 
   // Load saved tailors for current user
@@ -190,6 +225,14 @@ export default function TailorsPage() {
         <p style={{ fontSize: 13, color: '#9e9e9e' }}>{loading ? '…' : filtered.length} {t('tailors', 'found')}</p>
       </div>
 
+      {/* Error state */}
+      {fetchError && !loading && (
+        <div className="mx-5 mb-3 p-4 rounded-2xl" style={{ background: '#fff0f0', border: '1px solid #ffcdd2' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#d32f2f' }}>Could not load tailors</p>
+          <p style={{ fontSize: 12, color: '#9e9e9e', marginTop: 2 }}>{fetchError}</p>
+        </div>
+      )}
+
       {/* Tailor list */}
       <div className="px-5 flex flex-col gap-3 pb-4">
         {loading ? (
@@ -278,11 +321,17 @@ export default function TailorsPage() {
               )
             })}
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !fetchError && (
               <div className="text-center py-16">
                 <Scissors size={40} color="#ddd" className="mx-auto mb-3" />
-                <p style={{ color: '#9e9e9e', fontSize: 14 }}>{t('tailors', 'no_results')}</p>
-                <p style={{ color: '#bbb', fontSize: 12 }}>{t('tailors', 'no_results_sub')}</p>
+                <p style={{ color: '#9e9e9e', fontSize: 14 }}>
+                  {tailors.length === 0 ? 'No tailors available yet' : t('tailors', 'no_results')}
+                </p>
+                <p style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>
+                  {tailors.length === 0
+                    ? 'Tailors will appear here once approved by an admin'
+                    : t('tailors', 'no_results_sub')}
+                </p>
               </div>
             )}
           </>

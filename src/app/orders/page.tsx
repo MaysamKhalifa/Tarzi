@@ -78,7 +78,7 @@ export default function OrdersPage() {
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [user, authLoading])
+  }, [user?.id, authLoading])
 
   const doneStatuses = ['delivered', 'cancelled', 'declined']
   const inProgress = orders.filter(o => !doneStatuses.includes(o.status))
