@@ -15,10 +15,12 @@ type Tab = 'in_progress' | 'done'
 const STATUS_CONFIG = {
   pending:     { label: 'Pending',     color: '#f57c00', bg: '#fff3e0', icon: Clock },
   confirmed:   { label: 'Confirmed',   color: '#1565c0', bg: '#e3f2fd', icon: CheckCircle },
+  accepted:    { label: 'Accepted',    color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
   in_progress: { label: 'In Progress', color: '#7b1fa2', bg: '#f3e5f5', icon: Scissors },
   ready:       { label: 'Ready',       color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
   delivered:   { label: 'Delivered',   color: '#2e7d32', bg: '#e8f5e9', icon: Truck },
   cancelled:   { label: 'Cancelled',   color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
+  declined:    { label: 'Declined',    color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
 }
 
 const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling: RefreshCw }
@@ -78,7 +80,7 @@ export default function OrdersPage() {
     return () => { supabase.removeChannel(channel) }
   }, [user, authLoading])
 
-  const doneStatuses = ['delivered', 'cancelled']
+  const doneStatuses = ['delivered', 'cancelled', 'declined']
   const inProgress = orders.filter(o => !doneStatuses.includes(o.status))
   const done       = orders.filter(o =>  doneStatuses.includes(o.status))
   const displayed  = tab === 'in_progress' ? inProgress : done

@@ -79,6 +79,10 @@ export default function BagPage() {
     )
   }
 
+  // Returns true only if s is a valid UUID (i.e. a real Supabase profile ID)
+  const isValidUUID = (s: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
+
   const handleCheckout = async () => {
     if (!user) { router.push('/login'); return }
     if (!pickupDate || !pickupTime || !address.trim() || cart.length === 0) {
@@ -93,35 +97,51 @@ export default function BagPage() {
       const supabase = createClient()
 
       for (const item of cart) {
+        // Sanitise tailor_id — only pass it if it's a real UUID.
+        // Old localStorage items may carry fake sample IDs like 'tailor-1'.
+        const safeTailorId = item.tailorId && isValidUUID(item.tailorId)
+          ? item.tailorId
+          : null
+
         const orderNum = `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`
-        const { error } = await supabase.from('orders').insert({
-          user_id: user.id,
-          tailor_id: item.tailorId || null,
-          tailor_name: item.tailorName,
-          service_type: item.serviceType,
-          garment_type: item.garmentType,
-          gender: item.gender,
-          comments: item.comments || null,
-          measurement_id: item.measurementId || null,
-          image_urls: item.imageUrls || [],
-          price: item.price,
-          pickup_date: pickupDate,
-          pickup_time: pickupTime,
-          pickup_address: address.trim(),
-          status: 'pending',
-          order_number: orderNum,
-        })
+        const { data: newOrder, error } = await supabase.from('orders').insert({
+          user_id:         user.id,
+          tailor_id:       safeTailorId,
+          tailor_name:     safeTailorId ? (item.tailorName || null) : null,
+          service_type:    item.serviceType,
+          garment_type:    item.garmentType,
+          gender:          item.gender,
+          comments:        item.comments || null,
+          measurement_id:  item.measurementId || null,
+          image_urls:      item.imageUrls || [],
+          price:           item.price,
+          pickup_date:     pickupDate,
+          pickup_time:     pickupTime,
+          pickup_address:  address.trim(),
+          status:          'pending',
+          order_number:    orderNum,
+        }).select('id').single()
 
         if (error) {
           console.error('Order insert error:', error)
-          // Show a clear error for RLS or schema issues
-          if (error.code === '42501' || error.message?.includes('policy')) {
-            setOrderError('Permission denied. Please make sure you are logged in and try again.')
-          } else {
-            setOrderError(`Failed to place order: ${error.message}`)
-          }
-          setPlacing(false)
-          return
+          setOrderError(
+            error.message?.includes('policy') || error.code === '42501'
+              ? 'Permission denied. Please log out and log back in, then try again.'
+              : `Could not place order: ${error.message}`
+          )
+          return   // finally will reset placing
+        }
+
+        // ── Notify the tailor about the new order ──────────────────
+        if (safeTailorId && newOrder?.id) {
+          await supabase.from('notifications').insert({
+            user_id:  safeTailorId,         // recipient = tailor
+            order_id: newOrder.id,
+            type:     'new_order',
+            title:    'New Order Request',
+            message:  `You have a new order request for ${item.garmentType} (${item.serviceType.replace('_', ' ')})`,
+            is_read:  false,
+          })
         }
       }
 
@@ -131,6 +151,7 @@ export default function BagPage() {
       console.error('Checkout error:', err)
       setOrderError('Something went wrong. Please try again.')
     } finally {
+      // Always reset the loading state — even if an early return happened
       setPlacing(false)
     }
   }
@@ -384,6 +405,12 @@ export default function BagPage() {
             boxShadow: '0 -2px 12px rgba(0,0,0,0.06)',
           }}
         >
+          {orderError && (
+            <div className="mb-2 px-3 py-2 rounded-xl text-xs"
+              style={{ background: '#fff0f0', color: '#d32f2f', border: '1px solid #ffcdd2' }}>
+              ⚠️ {orderError}
+            </div>
+          )}
           <button
             onClick={handleCheckout}
             disabled={!isReady}
