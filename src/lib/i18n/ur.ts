@@ -51,6 +51,7 @@ export const ur = {
     about: 'بارے میں', reviews_tab: 'جائزے', expertise: 'مہارت', services: 'خدمات',
     availability: 'دستیابی', no_reviews: 'ابھی کوئی جائزہ نہیں',
     saved: 'پسندیدہ میں محفوظ ❤️', call: 'کال', book: '!ابھی بک کریں',
+    portfolio: 'پورٹ فولیو',
   },
   booking: {
     starting_from: 'شروع از',

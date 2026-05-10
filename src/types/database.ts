@@ -38,6 +38,14 @@ export interface Measurement {
   created_at: string
 }
 
+export interface PortfolioItem {
+  id: string
+  tailor_id: string
+  image_url: string
+  caption: string | null
+  created_at: string
+}
+
 export interface Tailor {
   id: string
   name: string
@@ -55,6 +63,11 @@ export interface Tailor {
   phone: string
   is_available: boolean
   created_at: string
+  // Extended profile fields from Supabase profiles table
+  shop_name?: string | null
+  shop_address?: string | null
+  languages?: string[] | null
+  portfolio_items?: PortfolioItem[]
 }
 
 export interface TailorReview {

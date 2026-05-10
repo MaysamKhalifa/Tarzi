@@ -51,6 +51,7 @@ export const en = {
     about: 'about', reviews_tab: 'reviews', expertise: 'Expertise', services: 'Services',
     availability: 'Availability', no_reviews: 'No reviews yet',
     saved: '❤️ Saved to favourites', call: 'Call', book: 'Book Now!',
+    portfolio: 'Portfolio',
   },
   booking: {
     starting_from: 'Starting from',

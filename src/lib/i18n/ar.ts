@@ -51,6 +51,7 @@ export const ar = {
     about: 'حول', reviews_tab: 'تقييمات', expertise: 'التخصصات', services: 'الخدمات',
     availability: 'أوقات العمل', no_reviews: 'لا توجد تقييمات بعد',
     saved: 'تم الحفظ في المفضلة ❤️', call: 'اتصال', book: '!احجز الآن',
+    portfolio: 'معرض الأعمال',
   },
   booking: {
     starting_from: 'يبدأ من',
