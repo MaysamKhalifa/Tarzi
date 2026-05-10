@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, Order } from '@/types/database'
@@ -35,52 +35,90 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
+  // loading = true until we know the auth state for certain
   const [loading, setLoading] = useState(true)
+  // Ensure setLoading(false) only fires once, even if both getUser() and
+  // onAuthStateChange(INITIAL_SESSION) resolve around the same time
+  const loadingResolvedRef = useRef(false)
+
+  const resolveLoading = () => {
+    if (!loadingResolvedRef.current) {
+      loadingResolvedRef.current = true
+      setLoading(false)
+    }
+  }
 
   const fetchProfile = async (userId: string) => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    if (data) {
-      setProfile(data)
-      // Load saved language preference
-      if (data.language && ['en', 'ar', 'ur'].includes(data.language)) {
-        localStorage.setItem('tarzi_lang', data.language)
-        document.documentElement.setAttribute('lang', data.language)
-        document.documentElement.setAttribute('dir', ['ar', 'ur'].includes(data.language) ? 'rtl' : 'ltr')
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      if (data) {
+        setProfile(data as Profile)
+        // Apply saved language preference
+        const lang = (data as Record<string, unknown>).preferred_language as string | undefined
+        if (lang && ['en', 'ar', 'ur'].includes(lang)) {
+          localStorage.setItem('tarzi_lang', lang)
+          document.documentElement.setAttribute('lang', lang)
+          document.documentElement.setAttribute('dir', ['ar', 'ur'].includes(lang) ? 'rtl' : 'ltr')
+        }
       }
+    } catch {
+      // Profile fetch is non-critical — auth still works without it
     }
   }
 
   useEffect(() => {
     const supabase = createClient()
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      if (user) fetchProfile(user.id)
-      setLoading(false)
+    // Load cart from localStorage immediately
+    try {
+      const savedCart = localStorage.getItem('tarzi_cart')
+      if (savedCart) setCart(JSON.parse(savedCart))
+    } catch { /* ignore */ }
+
+    // Safety net: if neither getUser() nor onAuthStateChange resolves within
+    // 5 seconds, force loading=false so the app doesn't get stuck forever
+    const safetyTimeout = setTimeout(() => {
+      console.warn('[AppContext] Auth safety timeout — forcing loading=false')
+      resolveLoading()
+    }, 5000)
+
+    // Primary auth check: works even when cookies are expired
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      clearTimeout(safetyTimeout)
+      setUser(u)
+      if (u) fetchProfile(u.id)
+      resolveLoading()
+    }).catch(() => {
+      clearTimeout(safetyTimeout)
+      resolveLoading()
     })
 
+    // Real-time auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
+      (_event, session) => {
+        const u = session?.user ?? null
+        setUser(u)
+        if (u) {
+          fetchProfile(u.id)
         } else {
           setProfile(null)
         }
+        // Also resolve loading here — whichever fires first (getUser or this) wins
+        clearTimeout(safetyTimeout)
+        resolveLoading()
       }
     )
 
-    // Load cart from localStorage
-    const savedCart = localStorage.getItem('tarzi_cart')
-    if (savedCart) setCart(JSON.parse(savedCart))
-
-    return () => subscription.unsubscribe()
-  }, [])
+    return () => {
+      clearTimeout(safetyTimeout)
+      subscription.unsubscribe()
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addToCart = (item: CartItem) => {
     const newCart = [...cart, item]

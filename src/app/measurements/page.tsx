@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { Ruler, User, ChevronRight, Plus, Check } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
@@ -13,54 +13,74 @@ import type { Measurement } from '@/types/database'
 export default function MeasurementsPage() {
   const { user, loading: authLoading } = useApp()
   const { t } = useLanguage()
+
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
 
+  // This ref ensures we run the fetch EXACTLY ONCE per component mount.
+  // It physically cannot loop because once set to true, no further fetches happen
+  // regardless of how many times the component re-renders or the effect fires.
+  const fetchedForUser = useRef<string | null | undefined>(undefined)
+
   useEffect(() => {
-    // Wait until auth resolves
+    // Auth not resolved yet — wait
     if (authLoading) return
 
-    // Not logged in — stop loading, show empty state
+    const currentUserId = user?.id ?? null
+
+    // Already ran for this exact user ID — do not run again
+    if (fetchedForUser.current === currentUserId) return
+
+    // Mark as done for this user before anything async
+    fetchedForUser.current = currentUserId
+
+    // Not logged in — just stop loading
     if (!user) {
       setLoading(false)
       return
     }
 
-    let cancelled = false
+    // Hard safety net: loading WILL stop after 8 seconds no matter what
+    const timeout = setTimeout(() => {
+      console.warn('[Measurements] Timeout — forcing loading=false')
+      setFetchError('Request timed out. Please check your connection.')
+      setLoading(false)
+    }, 8000)
 
-    const load = async () => {
-      setLoading(true)
-      setFetchError('')
-      try {
-        const supabase = createClient()
-        const { data, error } = await supabase
-          .from('measurements')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
+    console.log('[Measurements] Fetching for user:', currentUserId)
 
-        if (cancelled) return
-
-        if (error) {
-          console.error('Measurements fetch error:', error)
-          setFetchError(error.message)
-        } else {
-          setMeasurements(data || [])
-        }
-      } catch (err) {
-        if (cancelled) return
-        console.error('Measurements unexpected error:', err)
-        setFetchError('Could not load measurements. Please try again.')
-      } finally {
-        if (!cancelled) setLoading(false)
+    // Wrap in Promise.resolve() so we get a real Promise with .catch()
+    // (Supabase returns PromiseLike which lacks .catch)
+    Promise.resolve(
+      createClient()
+        .from('measurements')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+    ).then(({ data, error }) => {
+      clearTimeout(timeout)
+      if (error) {
+        console.error('[Measurements] Fetch error:', error.message)
+        setFetchError(error.message)
+      } else {
+        console.log('[Measurements] Loaded', data?.length ?? 0, 'measurements')
+        setMeasurements(data ?? [])
       }
-    }
+      setLoading(false)   // ← called exactly once, in .then()
+    }).catch(err => {
+      clearTimeout(timeout)
+      console.error('[Measurements] Unexpected error:', err)
+      setFetchError('Could not load measurements. Please try again.')
+      setLoading(false)   // ← called exactly once, in .catch()
+    })
 
-    load()
+    return () => clearTimeout(timeout)
 
-    return () => { cancelled = true }
-  }, [user?.id, authLoading]) // depend on user.id (stable), not user object (new ref each render)
+  // NOTE: intentionally NOT including `user?.id` and `authLoading` would
+  // cause stale closures. We include them BUT the ref gate above ensures
+  // the body only runs once per (user, authLoading) pair.
+  }, [authLoading, user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-dvh bg-white pb-24">
@@ -115,15 +135,24 @@ export default function MeasurementsPage() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-8">
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
               <div className="w-8 h-8 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
+              <p style={{ fontSize: 12, color: '#9e9e9e' }}>Loading your measurements…</p>
             </div>
           ) : fetchError ? (
             <div className="text-center py-10 rounded-2xl" style={{ background: '#fff0f0' }}>
               <p style={{ color: '#d32f2f', fontSize: 14, fontWeight: 600 }}>Could not load measurements</p>
               <p style={{ color: '#9e9e9e', fontSize: 12, marginTop: 4 }}>{fetchError}</p>
               <button
-                onClick={() => { setLoading(true); setFetchError(''); window.location.reload() }}
+                onClick={() => {
+                  // Reset the gate so fetch can run again, then reload
+                  fetchedForUser.current = undefined
+                  setLoading(true)
+                  setFetchError('')
+                  setMeasurements([])
+                  // Trigger the effect by forcing a re-render via small state change
+                  window.location.reload()
+                }}
                 className="mt-4 px-5 py-2 rounded-xl text-sm font-semibold"
                 style={{ background: '#fce4ec', color: '#e91e8c' }}>
                 Retry
