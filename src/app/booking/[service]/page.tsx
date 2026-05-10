@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Upload, X, ChevronDown, Scissors, RefreshCw, Sparkles, Check, Search } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { MALE_GARMENTS, FEMALE_GARMENTS, MALE_UPCYCLING_ITEMS, FEMALE_UPCYCLING_ITEMS } from '@/lib/data/garments'
-import { SAMPLE_TAILORS } from '@/lib/data/tailors'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
 import type { Measurement } from '@/types/database'
@@ -19,24 +18,41 @@ const SERVICE_META = {
   upcycling: { label: 'Upcycling', icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', price: 80 },
 }
 
+/* ── Real tailor shape from profiles table ── */
+interface RealTailor {
+  id: string
+  full_name: string | null
+  shop_name: string | null
+  area: string | null
+  city: string | null
+  avatar_url: string | null
+}
+
+function tailorDisplayName(t: RealTailor): string {
+  return t.shop_name || t.full_name || 'Tailor'
+}
+
 /* ── Searchable Tailor Picker ── */
 function TailorPicker({
   value,
+  tailors,
+  loading,
   onChange,
 }: {
   value: string
-  onChange: (id: string) => void
+  tailors: RealTailor[]
+  loading: boolean
+  onChange: (id: string, name: string) => void
 }) {
-  const available = SAMPLE_TAILORS.filter(t => t.is_available)
-  const selected = available.find(t => t.id === value)
+  const selected = tailors.find(t => t.id === value)
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const filtered = available.filter(t =>
+  const filtered = tailors.filter(t =>
     query === '' ||
-    t.name.toLowerCase().includes(query.toLowerCase()) ||
-    t.area.toLowerCase().includes(query.toLowerCase())
+    tailorDisplayName(t).toLowerCase().includes(query.toLowerCase()) ||
+    (t.area ?? '').toLowerCase().includes(query.toLowerCase())
   )
 
   // Close on outside click
@@ -62,14 +78,16 @@ function TailorPicker({
     <div ref={ref} className="relative">
       {/* Trigger row */}
       <div
-        onClick={() => { setOpen(o => !o); setQuery('') }}
+        onClick={() => { if (!loading) { setOpen(o => !o); setQuery('') } }}
         className="flex items-center justify-between cursor-pointer"
-        style={{ ...inputStyle, paddingRight: 40 }}
+        style={{ ...inputStyle, paddingRight: 40, color: selected ? '#1a1a1a' : '#9e9e9e' }}
       >
-        <span style={{ color: selected ? '#1a1a1a' : '#9e9e9e' }}>
-          {selected
-            ? `${selected.name} – ${selected.area}`
-            : 'Any available tailor'}
+        <span>
+          {loading
+            ? 'Loading tailors…'
+            : selected
+              ? `${tailorDisplayName(selected)}${selected.area ? ` – ${selected.area}` : ''}`
+              : 'Any available tailor'}
         </span>
         <ChevronDown
           size={16}
@@ -110,7 +128,7 @@ function TailorPicker({
           <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
             {/* "Any tailor" option */}
             <button
-              onClick={() => { onChange(''); setOpen(false) }}
+              onClick={() => { onChange('', ''); setOpen(false) }}
               className="w-full text-left px-4 py-3 flex items-center gap-3 transition-all hover:bg-gray-50"
               style={{ borderBottom: '1px solid #f9f9f9' }}
             >
@@ -127,27 +145,30 @@ function TailorPicker({
               {value === '' && <Check size={14} color="#e91e8c" className="ml-auto flex-shrink-0" />}
             </button>
 
-            {filtered.length === 0 && (
+            {filtered.length === 0 && !loading && (
               <p style={{ fontSize: 13, color: '#9e9e9e', padding: '16px', textAlign: 'center' }}>No tailors found</p>
             )}
 
             {filtered.map(t => (
               <button
                 key={t.id}
-                onClick={() => { onChange(t.id); setOpen(false) }}
+                onClick={() => { onChange(t.id, tailorDisplayName(t)); setOpen(false) }}
                 className="w-full text-left px-4 py-3 flex items-center gap-3 transition-all hover:bg-gray-50"
                 style={{ borderBottom: '1px solid #f9f9f9' }}
               >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                   style={{ background: '#fce4ec' }}>
-                  <Scissors size={14} color="#e91e8c" />
+                  {t.avatar_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={t.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <Scissors size={14} color="#e91e8c" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p style={{ fontSize: 13, fontWeight: 600, color: value === t.id ? '#e91e8c' : '#1a1a1a' }}>
-                    {t.name}
+                    {tailorDisplayName(t)}
                   </p>
                   <p style={{ fontSize: 11, color: '#9e9e9e' }}>
-                    {t.area} • {t.distance_km < 1 ? `${t.distance_km * 1000}m` : `${t.distance_km}km`} • ⭐ {t.rating}
+                    {[t.area, t.city].filter(Boolean).join(', ') || 'Dubai'}
                   </p>
                 </div>
                 {value === t.id && <Check size={14} color="#e91e8c" className="flex-shrink-0" />}
@@ -238,6 +259,9 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
   const [imageUrls, setImageUrls] = useState<string[]>([])
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [selectedTailor, setSelectedTailor] = useState(preselectedTailor)
+  const [selectedTailorName, setSelectedTailorName] = useState(preselectedTailorName)
+  const [realTailors, setRealTailors] = useState<RealTailor[]>([])
+  const [tailorsLoading, setTailorsLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [added, setAdded] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -250,6 +274,25 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
 
   const updateManual = (k: keyof typeof manualMeasurements, v: string) =>
     setManualMeasurements(prev => ({ ...prev, [k]: v }))
+
+  // Load real tailors from Supabase profiles
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('profiles')
+      .select('id, full_name, shop_name, area, city, avatar_url')
+      .eq('role', 'tailor')
+      .eq('onboarding_complete', true)
+      .then(({ data }) => {
+        setRealTailors((data as RealTailor[]) || [])
+        setTailorsLoading(false)
+        // If there's a pre-selected tailor ID (from tailor profile page), resolve their name
+        if (preselectedTailor && data) {
+          const found = data.find((t: RealTailor) => t.id === preselectedTailor)
+          if (found) setSelectedTailorName(found.shop_name || found.full_name || '')
+        }
+      })
+  }, [preselectedTailor])
 
   // Gender-aware garment list — now including upcycling
   const garmentList =
@@ -335,10 +378,10 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
 
   const handleAddToBag = () => {
     if (!garment) return
-    const tailor = SAMPLE_TAILORS.find(t => t.id === selectedTailor)
     addToCart({
+      // Pass empty string → bag page converts to null → no FK violation
       tailorId: selectedTailor,
-      tailorName: tailor?.name || preselectedTailorName || 'Any Available Tailor',
+      tailorName: selectedTailorName || 'Any Available Tailor',
       serviceType: svcKey,
       garmentType: garment,
       gender,
@@ -426,7 +469,15 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
             Preferred Tailor (optional)
           </label>
-          <TailorPicker value={selectedTailor} onChange={setSelectedTailor} />
+          <TailorPicker
+            value={selectedTailor}
+            tailors={realTailors}
+            loading={tailorsLoading}
+            onChange={(id, name) => {
+              setSelectedTailor(id)
+              setSelectedTailorName(name)
+            }}
+          />
         </div>
 
         {/* Auto-fill measurements */}
