@@ -278,15 +278,31 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
   // Load real tailors from Supabase profiles
   useEffect(() => {
     const supabase = createClient()
+
+    // Try approved tailors first; fall back to all tailors if none are approved yet
     supabase
       .from('profiles')
       .select('id, full_name, shop_name, area, city, avatar_url')
       .eq('role', 'tailor')
-      .eq('onboarding_complete', true)
-      .then(({ data }) => {
+      .eq('is_approved', true)
+      .then(({ data, error }) => {
+        if (error || !data || data.length === 0) {
+          // Fallback: show all tailors so booking is never blocked
+          return supabase
+            .from('profiles')
+            .select('id, full_name, shop_name, area, city, avatar_url')
+            .eq('role', 'tailor')
+            .then(({ data: fallback }) => {
+              setRealTailors((fallback as RealTailor[]) || [])
+              setTailorsLoading(false)
+              if (preselectedTailor && fallback) {
+                const found = fallback.find((t: RealTailor) => t.id === preselectedTailor)
+                if (found) setSelectedTailorName(found.shop_name || found.full_name || '')
+              }
+            })
+        }
         setRealTailors((data as RealTailor[]) || [])
         setTailorsLoading(false)
-        // If there's a pre-selected tailor ID (from tailor profile page), resolve their name
         if (preselectedTailor && data) {
           const found = data.find((t: RealTailor) => t.id === preselectedTailor)
           if (found) setSelectedTailorName(found.shop_name || found.full_name || '')

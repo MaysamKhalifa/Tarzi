@@ -97,11 +97,29 @@ export default function BagPage() {
       const supabase = createClient()
 
       for (const item of cart) {
-        // Sanitise tailor_id — only pass it if it's a real UUID.
-        // Old localStorage items may carry fake sample IDs like 'tailor-1'.
-        const safeTailorId = item.tailorId && isValidUUID(item.tailorId)
+        // Step 1: format check — reject obviously fake IDs like 'tailor-1'
+        const uuidCandidate = item.tailorId && isValidUUID(item.tailorId)
           ? item.tailorId
           : null
+
+        // Step 2: existence check — even a correctly-formatted UUID can be stale
+        // (deleted account, different environment, old localStorage). If the row
+        // doesn't exist in profiles the FK constraint will reject the insert.
+        let verifiedTailorId: string | null = null
+        if (uuidCandidate) {
+          const { data: tailorRow } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', uuidCandidate)
+            .eq('role', 'tailor')
+            .maybeSingle()
+          verifiedTailorId = tailorRow?.id ?? null
+          if (!tailorRow) {
+            console.warn('Bag: tailor UUID not found in profiles, setting tailor_id=null:', uuidCandidate)
+          }
+        }
+
+        const safeTailorId = verifiedTailorId
 
         const orderNum = `ORD-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`
         const { data: newOrder, error } = await supabase.from('orders').insert({
