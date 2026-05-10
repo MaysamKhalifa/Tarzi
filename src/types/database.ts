@@ -11,6 +11,8 @@ export interface Profile {
   area: string
   avatar_url: string | null
   role: 'customer' | 'tailor' | 'admin'
+  is_approved: boolean
+  notification_preferences: Record<string, boolean> | null
   created_at: string
   updated_at: string
 }
@@ -33,6 +35,7 @@ export interface Measurement {
   // Full body
   height: number | null
   weight: number | null
+  unit: string
   notes: string | null
   is_default: boolean
   created_at: string

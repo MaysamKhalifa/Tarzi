@@ -88,6 +88,7 @@ export default function TailorsPage() {
       .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
       .eq('role', 'tailor')
       .eq('onboarding_complete', true)
+      .eq('is_approved', true)
       .then(({ data, error }) => {
         if (!error && data) {
           setTailors((data as TailorRow[]).map(mapToDisplay))

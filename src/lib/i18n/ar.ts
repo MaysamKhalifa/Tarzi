@@ -1,6 +1,6 @@
 export const ar = {
   nav: {
-    home: 'الرئيسية', tailors: 'الخياطون', measure: 'المقاسات', bag: 'الحقيبة', profile: 'الملف الشخصي',
+    home: 'الرئيسية', tailors: 'الخياطون', chat: 'المحادثات', bag: 'الحقيبة', profile: 'الملف الشخصي',
   },
   common: {
     loading: '...جاري التحميل', save: 'حفظ', cancel: 'إلغاء', back: 'رجوع', done: 'تم',
@@ -89,6 +89,8 @@ export const ar = {
     book_now: 'احجز الآن', chat: 'محادثة', track: 'تتبع',
   },
   chat: {
+    title: 'محادثاتي', subtitle: 'رسائلك مع الخياطين',
+    no_chats: 'لا توجد محادثات بعد', no_chats_sub: 'قدّم طلباً للبدء في التحدث مع خياط',
     start: '!ابدأ المحادثة', start_sub: 'اسأل خياطك عن المواد والأسلوب والجدول الزمني والمزيد.',
     today: 'اليوم', yesterday: 'أمس', type_message: '...اكتب رسالة',
     system_msg: 'تحدث مع خياطك حول طلبك',
@@ -104,8 +106,14 @@ export const ar = {
     title: 'الملف الشخصي', account: 'الحساب', support_title: 'الدعم',
     order_history: 'سجل الطلبات', saved_tailors: 'الخياطون المحفوظون',
     addresses: 'عناويني', notifications: 'الإشعارات',
+    measurements: 'مقاساتي',
     payment: 'طرق الدفع', settings: 'الإعدادات', help: 'المساعدة والدعم',
     terms: 'الشروط والخصوصية', logout: 'تسجيل الخروج',
+    notif_orders: 'تحديثات الطلبات', notif_orders_desc: 'احصل على إشعار عند تغيير حالة طلبك',
+    notif_messages: 'رسائل الخياط', notif_messages_desc: 'تلقّ رسائل المحادثة من خياطك',
+    notif_promos: 'العروض الترويجية', notif_promos_desc: 'عروض وخصومات خاصة',
+    notif_news: 'أخبار التطبيق', notif_news_desc: 'ميزات وتحديثات جديدة',
+    save_notif: 'حفظ التفضيلات', saving_notif: '...جاري الحفظ', notif_saved: '!تم حفظ التفضيلات',
   },
   location: {
     title: 'عناويني', subtitle: 'إدارة عناوين الاستلام والتوصيل',

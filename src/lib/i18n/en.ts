@@ -1,6 +1,6 @@
 export const en = {
   nav: {
-    home: 'Home', tailors: 'Tailors', measure: 'Measure', bag: 'Bag', profile: 'Profile',
+    home: 'Home', tailors: 'Tailors', chat: 'Chat', bag: 'Bag', profile: 'Profile',
   },
   common: {
     loading: 'Loading...', save: 'Save', cancel: 'Cancel', back: 'Back', done: 'Done',
@@ -89,6 +89,8 @@ export const en = {
     book_now: 'Book Now', chat: 'Chat', track: 'Track',
   },
   chat: {
+    title: 'My Chats', subtitle: 'Messages with your tailors',
+    no_chats: 'No chats yet', no_chats_sub: 'Place an order to start chatting with a tailor',
     start: 'Start the conversation!', start_sub: 'Ask your tailor about materials, style, timeline, and more.',
     today: 'Today', yesterday: 'Yesterday', type_message: 'Type a message...',
     system_msg: 'Chat with your tailor about your order',
@@ -104,8 +106,14 @@ export const en = {
     title: 'Profile', account: 'Account', support_title: 'Support',
     order_history: 'Order History', saved_tailors: 'Saved Tailors',
     addresses: 'My Addresses', notifications: 'Notifications',
+    measurements: 'My Measurements',
     payment: 'Payment Methods', settings: 'Settings', help: 'Help & Support',
     terms: 'Terms & Privacy', logout: 'Log Out',
+    notif_orders: 'Order updates', notif_orders_desc: 'Get notified when your order status changes',
+    notif_messages: 'Tailor messages', notif_messages_desc: 'Receive chat messages from your tailor',
+    notif_promos: 'Promotions', notif_promos_desc: 'Special offers and discounts',
+    notif_news: 'App news', notif_news_desc: 'New features and updates',
+    save_notif: 'Save Preferences', saving_notif: 'Saving...', notif_saved: 'Preferences saved!',
   },
   location: {
     title: 'My Addresses', subtitle: 'Manage your pickup & delivery addresses',

@@ -132,16 +132,16 @@ export default function BagPage() {
           return   // finally will reset placing
         }
 
-        // ── Notify the tailor about the new order ──────────────────
+        // ── Notify the tailor (fire-and-forget — don't block checkout) ──
         if (safeTailorId && newOrder?.id) {
-          await supabase.from('notifications').insert({
-            user_id:  safeTailorId,         // recipient = tailor
+          supabase.from('notifications').insert({
+            user_id:  safeTailorId,
             order_id: newOrder.id,
             type:     'new_order',
             title:    'New Order Request',
             message:  `You have a new order request for ${item.garmentType} (${item.serviceType.replace('_', ' ')})`,
             is_read:  false,
-          })
+          }).then(() => {}) // intentional fire-and-forget
         }
       }
 

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import {
   User, Bell, Package, Heart, CreditCard, Settings,
   HelpCircle, FileText, LogOut, ChevronRight, Camera, Edit3,
-  X, MapPin
+  X, MapPin, Ruler, Check
 } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
 import { useApp } from '@/lib/context/AppContext'
@@ -57,7 +57,14 @@ export default function ProfilePage() {
   const [newName, setNewName] = useState(profile?.full_name || '')
   const [saving, setSaving] = useState(false)
   const [activeModal, setActiveModal] = useState<ModalType>(null)
-  const [notifToggles, setNotifToggles] = useState({ orders: true, messages: true, promos: false, news: false })
+  const [notifToggles, setNotifToggles] = useState({
+    orders: (profile?.notification_preferences as Record<string,boolean> | null)?.orders ?? true,
+    messages: (profile?.notification_preferences as Record<string,boolean> | null)?.messages ?? true,
+    promos: (profile?.notification_preferences as Record<string,boolean> | null)?.promos ?? false,
+    news: (profile?.notification_preferences as Record<string,boolean> | null)?.news ?? false,
+  })
+  const [savingNotif, setSavingNotif] = useState(false)
+  const [notifSaved, setNotifSaved] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
@@ -102,6 +109,18 @@ export default function ProfilePage() {
     window.location.replace('/login')
   }
 
+  const handleSaveNotifPrefs = async () => {
+    if (!user) return
+    setSavingNotif(true)
+    const supabase = createClient()
+    await supabase.from('profiles')
+      .update({ notification_preferences: notifToggles })
+      .eq('id', user.id)
+    setSavingNotif(false)
+    setNotifSaved(true)
+    setTimeout(() => setNotifSaved(false), 2000)
+  }
+
   const handleSaveName = async () => {
     if (!user || !newName.trim()) return
     setSaving(true)
@@ -123,6 +142,7 @@ export default function ProfilePage() {
         { icon: Bell, label: t('profile', 'notifications'), action: () => setActiveModal('notifications') },
         { icon: Package, label: t('profile', 'order_history'), href: '/orders' },
         { icon: Heart, label: t('profile', 'saved_tailors'), href: '/saved-tailors' },
+        { icon: Ruler, label: t('profile', 'measurements'), href: '/measurements' },
         { icon: MapPin, label: t('profile', 'addresses'), href: '/location' },
       ],
     },
@@ -144,17 +164,17 @@ export default function ProfilePage() {
 
   const MODAL_CONTENT: Record<NonNullable<ModalType>, { title: string; content: React.ReactNode }> = {
     notifications: {
-      title: 'Notifications',
+      title: t('profile', 'notifications'),
       content: (
         <div className="flex flex-col gap-3">
           {([
-            { key: 'orders' as const, label: 'Order updates', desc: 'Get notified when your order status changes' },
-            { key: 'messages' as const, label: 'Tailor messages', desc: 'Receive chat messages from your tailor' },
-            { key: 'promos' as const, label: 'Promotions', desc: 'Special offers and discounts' },
-            { key: 'news' as const, label: 'App news', desc: 'New features and updates' },
+            { key: 'orders'   as const, label: t('profile', 'notif_orders'),   desc: t('profile', 'notif_orders_desc') },
+            { key: 'messages' as const, label: t('profile', 'notif_messages'), desc: t('profile', 'notif_messages_desc') },
+            { key: 'promos'   as const, label: t('profile', 'notif_promos'),   desc: t('profile', 'notif_promos_desc') },
+            { key: 'news'     as const, label: t('profile', 'notif_news'),     desc: t('profile', 'notif_news_desc') },
           ]).map(item => (
             <div key={item.key} className="flex items-center justify-between p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
-              <div>
+              <div className="flex-1 mr-4">
                 <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{item.label}</p>
                 <p style={{ fontSize: 12, color: '#9e9e9e' }}>{item.desc}</p>
               </div>
@@ -166,7 +186,13 @@ export default function ProfilePage() {
               </button>
             </div>
           ))}
-          <p style={{ fontSize: 11, color: '#bbb', textAlign: 'center' }}>Push notifications coming soon in the mobile app</p>
+          <button
+            onClick={handleSaveNotifPrefs}
+            disabled={savingNotif || notifSaved}
+            className="w-full py-3.5 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2"
+            style={{ background: notifSaved ? '#4caf50' : savingNotif ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+            {notifSaved ? (<><Check size={16} /> {t('profile', 'notif_saved')}</>) : savingNotif ? t('profile', 'saving_notif') : t('profile', 'save_notif')}
+          </button>
         </div>
       ),
     },

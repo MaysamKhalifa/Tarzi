@@ -1,6 +1,6 @@
 export const ur = {
   nav: {
-    home: 'ہوم', tailors: 'درزی', measure: 'پیمائش', bag: 'بیگ', profile: 'پروفائل',
+    home: 'ہوم', tailors: 'درزی', chat: 'چیٹ', bag: 'بیگ', profile: 'پروفائل',
   },
   common: {
     loading: 'لوڈ ہو رہا ہے...', save: 'محفوظ کریں', cancel: 'منسوخ', back: 'واپس', done: 'ہو گیا',
@@ -89,6 +89,8 @@ export const ur = {
     book_now: 'ابھی بک کریں', chat: 'چیٹ', track: 'ٹریک',
   },
   chat: {
+    title: 'میری چیٹس', subtitle: 'درزیوں کے ساتھ پیغامات',
+    no_chats: 'ابھی کوئی چیٹ نہیں', no_chats_sub: 'درزی سے بات کرنے کے لیے آرڈر دیں',
     start: '!گفتگو شروع کریں', start_sub: 'اپنے درزی سے مواد، انداز، وقت اور مزید کے بارے میں پوچھیں۔',
     today: 'آج', yesterday: 'کل', type_message: 'پیغام لکھیں...',
     system_msg: 'اپنے آرڈر کے بارے میں درزی سے بات کریں',
@@ -104,8 +106,14 @@ export const ur = {
     title: 'پروفائل', account: 'اکاؤنٹ', support_title: 'سپورٹ',
     order_history: 'آرڈر کی تاریخ', saved_tailors: 'محفوظ درزی',
     addresses: 'میرے پتے', notifications: 'اطلاعات',
+    measurements: 'میری پیمائش',
     payment: 'ادائیگی کے طریقے', settings: 'ترتیبات', help: 'مدد اور سپورٹ',
     terms: 'شرائط اور رازداری', logout: 'لاگ آؤٹ',
+    notif_orders: 'آرڈر اپڈیٹس', notif_orders_desc: 'آرڈر کی حالت بدلنے پر اطلاع ملے',
+    notif_messages: 'درزی کے پیغامات', notif_messages_desc: 'درزی کی چیٹ پیغامات ملیں',
+    notif_promos: 'پروموشنز', notif_promos_desc: 'خاص آفرز اور چھوٹ',
+    notif_news: 'ایپ نیوز', notif_news_desc: 'نئی خصوصیات اور اپڈیٹس',
+    save_notif: 'ترجیحات محفوظ کریں', saving_notif: 'محفوظ ہو رہا ہے...', notif_saved: '!ترجیحات محفوظ ہو گئیں',
   },
   location: {
     title: 'میرے پتے', subtitle: 'پک اپ اور ڈیلیوری پتے منظم کریں',

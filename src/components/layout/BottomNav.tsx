@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Scissors, ShoppingBag, User, Ruler } from 'lucide-react'
+import { Home, Scissors, ShoppingBag, User, MessageCircle } from 'lucide-react'
 import { useApp } from '@/lib/context/AppContext'
 import { useLanguage } from '@/lib/context/LanguageContext'
 
@@ -12,10 +12,10 @@ export default function BottomNav() {
   const { t } = useLanguage()
 
   const navItems = [
-    { href: '/home', label: t('nav', 'home'), icon: Home },
+    { href: '/home',    label: t('nav', 'home'),    icon: Home },
     { href: '/tailors', label: t('nav', 'tailors'), icon: Scissors },
-    { href: '/measurements', label: t('nav', 'measure'), icon: Ruler },
-    { href: '/bag', label: t('nav', 'bag'), icon: ShoppingBag },
+    { href: '/chat',    label: t('nav', 'chat'),    icon: MessageCircle },
+    { href: '/bag',     label: t('nav', 'bag'),     icon: ShoppingBag },
     { href: '/profile', label: t('nav', 'profile'), icon: User },
   ]
 
