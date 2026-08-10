@@ -30,6 +30,8 @@ export const en = {
     verify_title: 'Verify your email', verify_sub: "We've sent a confirmation link to:",
     verify_check: "Click the link in the email to activate your account. Check your spam folder if you don't see it.",
     verify_go: 'Go to Login',
+    resend_btn: 'Resend Email', resending: 'Resending...', resent: 'Sent!',
+    resent_confirm: 'Confirmation email resent. Please check your inbox.',
     err_required: 'Please fill in all required fields',
     err_length: 'Password must be at least 8 characters',
     err_match: 'Passwords do not match',

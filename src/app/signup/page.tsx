@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Scissors, User, Phone, Mail } from 'lucide-react'
+import { Eye, EyeOff, Scissors, User, Phone, Mail, CheckCircle, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/context/LanguageContext'
 import LanguageSelector from '@/components/LanguageSelector'
@@ -17,6 +17,9 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [emailSent, setEmailSent] = useState(false)
   const [sentTo, setSentTo] = useState('')
+  const [resending, setResending] = useState(false)
+  const [resent, setResent] = useState(false)
+  const [resendError, setResendError] = useState('')
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,24 +39,57 @@ export default function SignupPage() {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (signUpError) { setError(signUpError.message); setLoading(false); return }
+      if (signUpError) {
+        console.error('[signup] auth.signUp failed:', signUpError.status, signUpError.message)
+        setError(signUpError.message)
+        setLoading(false)
+        return
+      }
 
       if (data.user && form.phone) {
         await supabase.from('profiles').update({ phone: form.phone }).eq('id', data.user.id)
       }
 
       if (data.session) {
-        // Email confirmation disabled — go straight to home
+        // Supabase Auth has "Confirm email" disabled for this project, so no
+        // verification email is sent by design — the user is signed in immediately.
+        console.warn('[signup] Session returned on signUp — email confirmation is disabled in Supabase Auth settings, no verification email was sent.')
         router.replace('/home')
       } else {
-        // Email confirmation required — show check email screen
+        // Email confirmation required — Supabase should have queued the email.
+        console.info('[signup] No session on signUp — Supabase should be sending a confirmation email to', form.email)
         setSentTo(form.email)
         setEmailSent(true)
       }
-    } catch {
+    } catch (err) {
+      console.error('[signup] Unexpected error during signup:', err)
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    setResending(true)
+    setResendError('')
+    try {
+      const supabase = createClient()
+      const { error: resendErr } = await supabase.auth.resend({
+        type: 'signup',
+        email: sentTo,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      })
+      if (resendErr) {
+        console.error('[signup] resend failed:', resendErr.status, resendErr.message)
+        setResendError(resendErr.message)
+      } else {
+        setResent(true)
+      }
+    } catch (err) {
+      console.error('[signup] Unexpected error resending email:', err)
+      setResendError('Could not resend email. Please try again.')
+    } finally {
+      setResending(false)
     }
   }
 
@@ -76,9 +112,41 @@ export default function SignupPage() {
           {t('signup', 'verify_sub')}
         </p>
         <p style={{ color: '#e91e8c', fontWeight: 700, fontSize: 15, marginBottom: 24 }}>{sentTo}</p>
-        <p style={{ color: '#9e9e9e', fontSize: 13, lineHeight: 1.7, marginBottom: 32 }}>
+        <p style={{ color: '#9e9e9e', fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
           {t('signup', 'verify_check')}
         </p>
+
+        {resent && (
+          <div className="w-full flex items-center gap-2 mb-4 px-4 py-3 rounded-xl"
+            style={{ background: '#e8f5e9' }}>
+            <CheckCircle size={18} color="#2e7d32" />
+            <span style={{ fontSize: 14, color: '#2e7d32', fontWeight: 600 }}>{t('signup', 'resent_confirm')}</span>
+          </div>
+        )}
+
+        {resendError && (
+          <div className="w-full mb-4 px-4 py-3 rounded-xl text-sm text-left"
+            style={{ background: '#fff5f5', border: '1px solid #fecaca', color: '#dc2626' }}>
+            {resendError}
+          </div>
+        )}
+
+        <button onClick={handleResend} disabled={resending || resent}
+          className="w-full py-3.5 rounded-full font-bold text-sm mb-3 flex items-center justify-center gap-2"
+          style={{
+            background: resent ? '#e8f5e9' : '#fce4ec',
+            color: resent ? '#2e7d32' : '#e91e8c',
+            cursor: resending ? 'not-allowed' : 'pointer',
+          }}>
+          {resending ? (
+            <><RefreshCw size={16} className="animate-spin" /> {t('signup', 'resending')}</>
+          ) : resent ? (
+            <><CheckCircle size={16} /> {t('signup', 'resent')}</>
+          ) : (
+            t('signup', 'resend_btn')
+          )}
+        </button>
+
         <Link href="/login"
           className="w-full py-4 rounded-full text-white font-bold text-base block"
           style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
