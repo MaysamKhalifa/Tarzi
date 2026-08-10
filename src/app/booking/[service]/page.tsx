@@ -1,184 +1,26 @@
 'use client'
 
-import { use, useState, useEffect, useRef, Suspense } from 'react'
+import { use, useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Upload, X, ChevronDown, Scissors, RefreshCw, Sparkles, Check, Search } from 'lucide-react'
+import { Upload, X, ChevronDown, Scissors, RefreshCw, Sparkles, Check } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
+import TailorPicker, { type RealTailor } from '@/components/TailorPicker'
 import { MALE_GARMENTS, FEMALE_GARMENTS, MALE_UPCYCLING_ITEMS, FEMALE_UPCYCLING_ITEMS } from '@/lib/data/garments'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
+import { useLanguage } from '@/lib/context/LanguageContext'
 import type { Measurement } from '@/types/database'
 
 type Gender = 'male' | 'female'
 type ServiceType = 'alterations' | 'from_scratch' | 'upcycling'
 
-const SERVICE_META = {
-  alterations: { label: 'Alterations', icon: Scissors, color: '#e91e8c', bg: '#fce4ec', price: 45 },
-  from_scratch: { label: 'From Scratch', icon: Sparkles, color: '#f57c00', bg: '#fff3e0', price: 200 },
-  upcycling: { label: 'Upcycling', icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', price: 80 },
-}
-
-/* ── Real tailor shape from profiles table ── */
-interface RealTailor {
-  id: string
-  full_name: string | null
-  shop_name: string | null
-  area: string | null
-  city: string | null
-  avatar_url: string | null
-}
-
-function tailorDisplayName(t: RealTailor): string {
-  return t.shop_name || t.full_name || 'Tailor'
-}
-
-/* ── Searchable Tailor Picker ── */
-function TailorPicker({
-  value,
-  tailors,
-  loading,
-  onChange,
-}: {
-  value: string
-  tailors: RealTailor[]
-  loading: boolean
-  onChange: (id: string, name: string) => void
-}) {
-  const selected = tailors.find(t => t.id === value)
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  const filtered = tailors.filter(t =>
-    query === '' ||
-    tailorDisplayName(t).toLowerCase().includes(query.toLowerCase()) ||
-    (t.area ?? '').toLowerCase().includes(query.toLowerCase())
-  )
-
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const inputStyle: React.CSSProperties = {
-    border: '1.5px solid #e8e8e8',
-    background: '#fafafa',
-    borderRadius: 12,
-    padding: '12px 14px',
-    fontSize: 15,
-    width: '100%',
-    outline: 'none',
+function useServiceMeta() {
+  const { t } = useLanguage()
+  return {
+    alterations: { label: t('home', 'alterations'), icon: Scissors, color: '#e91e8c', bg: '#fce4ec', price: 45, subtitleKey: 'subtitle_alterations' as const },
+    from_scratch: { label: t('home', 'from_scratch'), icon: Sparkles, color: '#f57c00', bg: '#fff3e0', price: 200, subtitleKey: 'subtitle_from_scratch' as const },
+    upcycling: { label: t('home', 'upcycling'), icon: RefreshCw, color: '#7b1fa2', bg: '#f3e5f5', price: 80, subtitleKey: 'subtitle_upcycling' as const },
   }
-
-  return (
-    <div ref={ref} className="relative">
-      {/* Trigger row */}
-      <div
-        onClick={() => { if (!loading) { setOpen(o => !o); setQuery('') } }}
-        className="flex items-center justify-between cursor-pointer"
-        style={{ ...inputStyle, paddingRight: 40, color: selected ? '#1a1a1a' : '#9e9e9e' }}
-      >
-        <span>
-          {loading
-            ? 'Loading tailors…'
-            : selected
-              ? `${tailorDisplayName(selected)}${selected.area ? ` – ${selected.area}` : ''}`
-              : 'Any available tailor'}
-        </span>
-        <ChevronDown
-          size={16}
-          color="#9e9e9e"
-          className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none"
-          style={{ transform: open ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%)' }}
-        />
-      </div>
-
-      {/* Dropdown */}
-      {open && (
-        <div
-          className="absolute left-0 right-0 z-50 mt-1 rounded-2xl overflow-hidden"
-          style={{ background: 'white', boxShadow: '0 8px 32px rgba(0,0,0,0.14)', border: '1px solid #f0f0f0' }}
-        >
-          {/* Search input */}
-          <div className="px-3 py-2.5" style={{ borderBottom: '1px solid #f5f5f5' }}>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#f5f5f5' }}>
-              <Search size={14} color="#9e9e9e" />
-              <input
-                autoFocus
-                type="text"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search by name or area..."
-                className="flex-1 bg-transparent outline-none text-sm"
-                style={{ fontSize: 13, color: '#1a1a1a' }}
-              />
-              {query && (
-                <button onClick={() => setQuery('')}>
-                  <X size={12} color="#9e9e9e" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Option list */}
-          <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
-            {/* "Any tailor" option */}
-            <button
-              onClick={() => { onChange('', ''); setOpen(false) }}
-              className="w-full text-left px-4 py-3 flex items-center gap-3 transition-all hover:bg-gray-50"
-              style={{ borderBottom: '1px solid #f9f9f9' }}
-            >
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: '#f5f5f5' }}>
-                <Scissors size={14} color="#9e9e9e" />
-              </div>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: value === '' ? '#e91e8c' : '#1a1a1a' }}>
-                  Any available tailor
-                </p>
-                <p style={{ fontSize: 11, color: '#9e9e9e' }}>Best available tailor will be assigned</p>
-              </div>
-              {value === '' && <Check size={14} color="#e91e8c" className="ml-auto flex-shrink-0" />}
-            </button>
-
-            {filtered.length === 0 && !loading && (
-              <p style={{ fontSize: 13, color: '#9e9e9e', padding: '16px', textAlign: 'center' }}>No tailors found</p>
-            )}
-
-            {filtered.map(t => (
-              <button
-                key={t.id}
-                onClick={() => { onChange(t.id, tailorDisplayName(t)); setOpen(false) }}
-                className="w-full text-left px-4 py-3 flex items-center gap-3 transition-all hover:bg-gray-50"
-                style={{ borderBottom: '1px solid #f9f9f9' }}
-              >
-                <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
-                  style={{ background: '#fce4ec' }}>
-                  {t.avatar_url
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={t.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : <Scissors size={14} color="#e91e8c" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p style={{ fontSize: 13, fontWeight: 600, color: value === t.id ? '#e91e8c' : '#1a1a1a' }}>
-                    {tailorDisplayName(t)}
-                  </p>
-                  <p style={{ fontSize: 11, color: '#9e9e9e' }}>
-                    {[t.area, t.city].filter(Boolean).join(', ') || 'Dubai'}
-                  </p>
-                </div>
-                {value === t.id && <Check size={14} color="#e91e8c" className="flex-shrink-0" />}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
 
 /* ── Toast Banner ── */
@@ -240,6 +82,8 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, addToCart } = useApp()
+  const { t, isRTL } = useLanguage()
+  const SERVICE_META = useServiceMeta()
 
   const svcKey = (serviceParam as ServiceType) in SERVICE_META ? (serviceParam as ServiceType) : 'alterations'
   const meta = SERVICE_META[svcKey]
@@ -262,6 +106,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
   const [selectedTailorName, setSelectedTailorName] = useState(preselectedTailorName)
   const [realTailors, setRealTailors] = useState<RealTailor[]>([])
   const [tailorsLoading, setTailorsLoading] = useState(true)
+  const [tailorPrice, setTailorPrice] = useState<number | null>(null)
   const [uploading, setUploading] = useState(false)
   const [added, setAdded] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
@@ -310,6 +155,18 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
       })
   }, [preselectedTailor])
 
+  // Fetch tailor-specific pricing whenever a tailor is selected
+  useEffect(() => {
+    if (!selectedTailor) { setTailorPrice(null); return }
+    createClient()
+      .from('tailor_services')
+      .select('price_from')
+      .eq('tailor_id', selectedTailor)
+      .eq('service_type', svcKey)
+      .maybeSingle()
+      .then(({ data }) => setTailorPrice(data?.price_from ?? null))
+  }, [selectedTailor, svcKey])
+
   // Gender-aware garment list — now including upcycling
   const garmentList =
     svcKey === 'upcycling'
@@ -321,7 +178,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
     if (autoFill !== 'yes') return
 
     if (!user) {
-      setToast('Please sign in to use saved measurements')
+      setToast(t('booking', 'sign_in_measurements'))
       return
     }
 
@@ -337,7 +194,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         setMeasurementsLoading(false)
         if (error) {
           console.error('Measurements fetch error:', error)
-          setToast('Could not load measurements. Please try again.')
+          setToast(t('booking', 'could_not_load_measurements'))
           setAutoFill('no')
           return
         }
@@ -345,7 +202,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         setMeasurements(list)
         if (list.length === 0) {
           // Show toast then redirect after 7 seconds
-          setToast('No measurements found. Please fill in your measurements first.')
+          setToast(t('booking', 'no_measurements_found'))
           setTimeout(() => {
             router.push('/measurements')
           }, 7000)
@@ -403,7 +260,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
       gender,
       comments,
       imageUrls,
-      price: meta.price,
+      price: tailorPrice !== null ? tailorPrice : meta.price,
       measurementId: selectedMeasurement || null,
     })
     setAdded(true)
@@ -421,13 +278,13 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
   }
 
   return (
-    <div className="min-h-dvh bg-white pb-8">
+    <div className="min-h-dvh bg-white pb-8" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Toast */}
       {toast && (
         <Toast message={toast} onDone={() => setToast(null)} />
       )}
 
-      <PageHeader title={meta.label} subtitle={`Book a ${meta.label.toLowerCase()} service`} />
+      <PageHeader title={meta.label} subtitle={t('booking', meta.subtitleKey)} />
 
       <div className="px-5 py-4 flex flex-col gap-5">
         {/* Service badge */}
@@ -437,14 +294,17 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
           </div>
           <div>
             <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a' }}>{meta.label}</p>
-            <p style={{ fontSize: 13, color: '#757575' }}>Starting from AED {meta.price}</p>
+            <p style={{ fontSize: 13, color: '#757575' }}>
+              {t('booking', 'starting_from')} AED {tailorPrice !== null ? tailorPrice : meta.price}
+              {tailorPrice !== null && <span style={{ fontSize: 11, color: '#9e9e9e' }}> {t('booking', 'this_tailor')}</span>}
+            </p>
           </div>
         </div>
 
         {/* Gender — shown for ALL service types including upcycling */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            Gender
+            {t('booking', 'gender')}
           </label>
           <div className="flex gap-3">
             {(['female', 'male'] as Gender[]).map(g => (
@@ -457,7 +317,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                   background: gender === g ? '#fce4ec' : '#fafafa',
                   color: gender === g ? '#e91e8c' : '#9e9e9e',
                 }}>
-                {g === 'female' ? '👗 Female' : '👔 Male'}
+                {g === 'female' ? t('booking', 'female') : t('booking', 'male')}
               </button>
             ))}
           </div>
@@ -466,14 +326,14 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         {/* Garment type */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            {svcKey === 'upcycling' ? 'Garment to Upcycle' : svcKey === 'from_scratch' ? 'Outfit Style' : 'Garment Type'} *
+            {svcKey === 'upcycling' ? t('booking', 'garment_upcycling') : svcKey === 'from_scratch' ? t('booking', 'garment_scratch') : t('booking', 'garment_label')} *
           </label>
           <div className="relative">
             <select
               value={garment}
               onChange={e => setGarment(e.target.value)}
               style={{ ...inputStyle, paddingRight: 40, appearance: 'none', cursor: 'pointer' }}>
-              <option value="">Select garment...</option>
+              <option value="">{t('booking', 'select_garment')}</option>
               {garmentList.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
             <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" color="#9e9e9e" />
@@ -483,7 +343,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         {/* Tailor selection — searchable */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            Preferred Tailor (optional)
+            {t('booking', 'select_tailor')}
           </label>
           <TailorPicker
             value={selectedTailor}
@@ -499,7 +359,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         {/* Auto-fill measurements */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            Auto-fill from Saved Measurements?
+            {t('booking', 'autofill')}
           </label>
           <div className="flex gap-3">
             {(['yes', 'no'] as const).map(v => (
@@ -510,7 +370,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                   background: autoFill === v ? '#fce4ec' : '#fafafa',
                   color: autoFill === v ? '#e91e8c' : '#9e9e9e',
                 }}>
-                {v === 'yes' ? '✓ Yes, use saved' : '✗ No, skip'}
+                {v === 'yes' ? t('booking', 'autofill_yes') : t('booking', 'autofill_no')}
               </button>
             ))}
           </div>
@@ -519,7 +379,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
           {autoFill === 'yes' && measurementsLoading && (
             <div className="mt-3 flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: '#f9f9f9' }}>
               <div className="w-4 h-4 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin flex-shrink-0" />
-              <p style={{ fontSize: 13, color: '#9e9e9e' }}>Loading your measurements…</p>
+              <p style={{ fontSize: 13, color: '#9e9e9e' }}>{t('booking', 'loading_measurements')}</p>
             </div>
           )}
 
@@ -527,7 +387,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
           {autoFill === 'yes' && !measurementsLoading && measurements.length > 0 && (
             <div className="mt-3">
               <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-                Choose measurement profile
+                {t('booking', 'choose_measurement')}
               </label>
               <div className="flex flex-col gap-2">
                 {measurements.map(m => (
@@ -547,19 +407,19 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                     <div className="flex-1">
                       <p style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{m.name}</p>
                       <p style={{ fontSize: 11, color: '#9e9e9e' }}>
-                        {m.gender} {m.is_default ? '• Default' : ''} {m.chest ? `• Chest: ${m.chest}cm` : ''}
+                        {m.gender} {m.is_default ? t('booking', 'default_tag') : ''} {m.chest ? `• Chest: ${m.chest}cm` : ''}
                       </p>
                     </div>
                     {selectedMeasurement === m.id && (
                       <span style={{ fontSize: 10, background: '#e91e8c', color: 'white', padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>
-                        Selected
+                        {t('booking', 'selected_badge')}
                       </span>
                     )}
                   </button>
                 ))}
               </div>
               <p style={{ fontSize: 11, color: '#4caf50', marginTop: 6, fontWeight: 600 }}>
-                ✓ Measurements will be shared with the tailor
+                {t('booking', 'measurements_shared')}
               </p>
             </div>
           )}
@@ -568,20 +428,20 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
           {autoFill === 'no' && (
             <div className="mt-4 p-4 rounded-2xl" style={{ background: '#f9f9f9', border: '1.5px solid #f0f0f0' }}>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>
-                Enter Your Measurements
+                {t('booking', 'enter_measurements')}
               </p>
               <p style={{ fontSize: 11, color: '#9e9e9e', marginBottom: 12 }}>
-                All fields in cm — fill what you know, skip the rest.
+                {t('booking', 'enter_measurements_sub')}
               </p>
 
               {/* Profile name */}
               <div className="mb-3">
                 <label style={{ fontSize: 11, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>
-                  Profile name (e.g. "My Measurements")
+                  {t('booking', 'profile_name_label')}
                 </label>
                 <input
                   type="text"
-                  placeholder="My Measurements"
+                  placeholder={t('booking', 'profile_name_placeholder')}
                   value={manualMeasurements.profileName}
                   onChange={e => updateManual('profileName', e.target.value)}
                   style={{ ...inputStyle, fontSize: 13 }}
@@ -590,22 +450,22 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
 
               <div className="grid grid-cols-2 gap-3">
                 {([
-                  { key: 'chest', label: 'Chest (cm)' },
-                  { key: 'waist', label: 'Waist (cm)' },
-                  { key: 'hips', label: 'Hips (cm)' },
-                  { key: 'shoulder', label: 'Shoulder (cm)' },
-                  { key: 'armLength', label: 'Arm Length (cm)' },
-                  { key: 'neck', label: 'Neck (cm)' },
-                  { key: 'inseam', label: 'Inseam (cm)' },
-                  { key: 'height', label: 'Height (cm)' },
-                  { key: 'weight', label: 'Weight (kg)' },
-                ] as { key: keyof typeof manualMeasurements; label: string }[]).map(({ key, label }) => (
+                  { key: 'chest', labelKey: 'field_chest' },
+                  { key: 'waist', labelKey: 'field_waist' },
+                  { key: 'hips', labelKey: 'field_hips' },
+                  { key: 'shoulder', labelKey: 'field_shoulder' },
+                  { key: 'armLength', labelKey: 'field_arm' },
+                  { key: 'neck', labelKey: 'field_neck' },
+                  { key: 'inseam', labelKey: 'field_inseam' },
+                  { key: 'height', labelKey: 'field_height' },
+                  { key: 'weight', labelKey: 'field_weight' },
+                ] as { key: keyof typeof manualMeasurements; labelKey: 'field_chest' | 'field_waist' | 'field_hips' | 'field_shoulder' | 'field_arm' | 'field_neck' | 'field_inseam' | 'field_height' | 'field_weight' }[]).map(({ key, labelKey }) => (
                   <div key={key}>
-                    <label style={{ fontSize: 10, fontWeight: 600, color: '#555', display: 'block', marginBottom: 3 }}>{label}</label>
+                    <label style={{ fontSize: 10, fontWeight: 600, color: '#555', display: 'block', marginBottom: 3 }}>{t('booking', labelKey)}</label>
                     <input
                       type="text"
                       inputMode="decimal"
-                      placeholder="e.g. 90"
+                      placeholder={t('booking', 'field_value_placeholder')}
                       value={manualMeasurements[key]}
                       onChange={e => {
                         const v = e.target.value
@@ -626,7 +486,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                     .from('measurements')
                     .insert({
                       user_id: user.id,
-                      name: manualMeasurements.profileName || 'My Measurements',
+                      name: manualMeasurements.profileName || t('booking', 'profile_name_placeholder'),
                       gender,
                       chest: manualMeasurements.chest ? parseFloat(manualMeasurements.chest.replace(',', '.')) : null,
                       waist: manualMeasurements.waist ? parseFloat(manualMeasurements.waist.replace(',', '.')) : null,
@@ -652,12 +512,12 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
                   background: savingManual ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
                   color: 'white',
                 }}>
-                {savingManual ? 'Saving…' : selectedMeasurement ? '✓ Measurements Saved!' : 'Save Measurements'}
+                {savingManual ? t('booking', 'saving') : selectedMeasurement ? t('booking', 'measurements_saved') : t('booking', 'save_measurements_btn')}
               </button>
 
               {selectedMeasurement && !savingManual && (
                 <p style={{ fontSize: 11, color: '#4caf50', textAlign: 'center', marginTop: 6, fontWeight: 600 }}>
-                  ✓ Saved and linked to your order
+                  {t('booking', 'saved_linked')}
                 </p>
               )}
             </div>
@@ -667,7 +527,7 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         {/* Image upload */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            Attach Images (optional)
+            {t('booking', 'images')}
           </label>
           <label
             className="flex flex-col items-center justify-center gap-2 p-5 rounded-2xl cursor-pointer transition-all"
@@ -676,9 +536,9 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
               onChange={e => handleImageUpload(e.target.files)} />
             <Upload size={22} color="#9e9e9e" />
             <span style={{ fontSize: 13, color: uploading ? '#e91e8c' : '#9e9e9e' }}>
-              {uploading ? 'Uploading…' : 'Tap to upload photos'}
+              {uploading ? t('booking', 'uploading') : t('booking', 'tap_upload')}
             </span>
-            <span style={{ fontSize: 11, color: '#bbb' }}>JPG, PNG • No limit</span>
+            <span style={{ fontSize: 11, color: '#bbb' }}>{t('booking', 'no_limit')}</span>
           </label>
 
           {images.length > 0 && (
@@ -700,12 +560,12 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         {/* Comments */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-            Comments (optional)
+            {t('booking', 'comments')}
           </label>
           <textarea
             value={comments}
             onChange={e => setComments(e.target.value)}
-            placeholder="Describe your requirements, fabric preferences, style details…"
+            placeholder={t('booking', 'comments_placeholder')}
             rows={3}
             style={{ ...inputStyle, resize: 'none' }}
             onFocus={e => (e.target.style.borderColor = '#e91e8c')}
@@ -716,11 +576,15 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
         {/* Price estimate */}
         <div className="flex items-center justify-between p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
           <div>
-            <p style={{ fontSize: 13, color: '#9e9e9e' }}>Estimated price</p>
-            <p style={{ fontSize: 22, fontWeight: 800, color: '#e91e8c' }}>AED {meta.price}</p>
+            <p style={{ fontSize: 13, color: '#9e9e9e' }}>
+              {tailorPrice !== null ? t('booking', 'tailors_price') : t('booking', 'estimated')}
+            </p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: '#e91e8c' }}>
+              AED {tailorPrice !== null ? tailorPrice : meta.price}
+            </p>
           </div>
           <p style={{ fontSize: 11, color: '#bbb', textAlign: 'right', maxWidth: 120, lineHeight: 1.4 }}>
-            Final price decided by tailor after review
+            {t('booking', 'final_note')}
           </p>
         </div>
 
@@ -738,12 +602,12 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
             boxShadow: (!garment || uploading) && !added ? 'none' : '0 4px 15px rgba(233, 30, 140, 0.3)',
           }}>
           {added
-            ? <><Check size={18} /> Added to Bag!</>
+            ? <><Check size={18} /> {t('booking', 'added')}</>
             : uploading
-              ? 'Uploading images…'
+              ? t('booking', 'adding')
               : !garment
-                ? 'Select a garment to continue'
-                : 'Add to Bag'}
+                ? t('booking', 'select_to_continue')
+                : t('booking', 'add_to_bag')}
         </button>
       </div>
     </div>

@@ -31,7 +31,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
   const { id } = use(params)
   const router = useRouter()
   const { user } = useApp()
-  const { t: tl } = useLanguage()
+  const { t: tl, isRTL } = useLanguage()
   const [saved, setSaved] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'about' | 'portfolio'>('about')
@@ -122,7 +122,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
   if (!tailor) {
     return (
       <div className="min-h-dvh flex items-center justify-center">
-        <p style={{ color: '#9e9e9e' }}>Tailor not found</p>
+        <p style={{ color: '#9e9e9e' }}>{tl('tailor_profile', 'not_found')}</p>
       </div>
     )
   }
@@ -132,7 +132,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
   const expertise = tailor.specialties || (tailor.specialty ? [tailor.specialty] : [])
 
   return (
-    <div className="min-h-dvh bg-white pb-24">
+    <div className="min-h-dvh bg-white pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="relative h-52"
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
@@ -183,7 +183,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
             </div>
           )}
           {saved && (
-            <p style={{ fontSize: 12, color: '#e91e8c', fontWeight: 600, marginTop: 6 }}>Saved to favourites</p>
+            <p style={{ fontSize: 12, color: '#e91e8c', fontWeight: 600, marginTop: 6 }}>{tl('tailor_profile', 'saved')}</p>
           )}
         </div>
 
@@ -251,7 +251,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
               <div className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin size={16} color="#e91e8c" />
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>Shop Address</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>{tl('tailor_profile', 'shop_address')}</p>
                 </div>
                 <p style={{ fontSize: 13, color: '#555' }}>{tailor.shop_address}</p>
               </div>
@@ -262,7 +262,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <Globe size={16} color="#e91e8c" />
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>Languages</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>{tl('tailor_profile', 'languages')}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {tailor.languages.map(lang => (
@@ -297,7 +297,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
               <>
                 <div className="flex items-center gap-2 mb-3">
                   <Images size={16} color="#e91e8c" />
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>Previous Work</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>{tl('tailor_profile', 'previous_work')}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {portfolio.map(item => (
@@ -326,7 +326,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
             ) : (
               <div className="text-center py-12">
                 <Images size={40} color="#ddd" className="mx-auto mb-3" />
-                <p style={{ color: '#9e9e9e', fontSize: 14 }}>No portfolio images yet</p>
+                <p style={{ color: '#9e9e9e', fontSize: 14 }}>{tl('tailor_profile', 'no_portfolio')}</p>
               </div>
             )}
           </div>

@@ -5,11 +5,13 @@ import { Send, Phone, Scissors } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
+import { useLanguage } from '@/lib/context/LanguageContext'
 import type { ChatMessage, Order } from '@/types/database'
 
 export default function ChatPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
   const { user, profile } = useApp()
+  const { t, isRTL } = useLanguage()
   const [order, setOrder] = useState<Order | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -85,10 +87,10 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
   const formatDate = (ts: string) => {
     const d = new Date(ts)
     const today = new Date()
-    if (d.toDateString() === today.toDateString()) return 'Today'
+    if (d.toDateString() === today.toDateString()) return t('chat', 'today')
     const yesterday = new Date(today)
     yesterday.setDate(today.getDate() - 1)
-    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+    if (d.toDateString() === yesterday.toDateString()) return t('chat', 'yesterday')
     return d.toLocaleDateString('en-AE', { month: 'short', day: 'numeric' })
   }
 
@@ -105,13 +107,13 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
   })
 
   return (
-    <div className="h-dvh flex flex-col bg-white">
+    <div className="h-dvh flex flex-col bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="px-4 pt-12 pb-3 flex items-center gap-3"
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
         <PageHeader
-          title={order?.tailor_name || 'Chat with Tailor'}
-          subtitle={order ? `${order.order_number} • ${order.garment_type}` : 'Loading...'}
+          title={order?.tailor_name || t('chat', 'chat_with_tailor')}
+          subtitle={order ? `${order.order_number} • ${order.garment_type}` : t('common', 'loading')}
           transparent
           rightElement={
             <a href={`tel:+971500000000`}
@@ -135,7 +137,7 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
             <div className="text-center mb-4">
               <span className="px-4 py-1.5 rounded-full text-xs"
                 style={{ background: '#e8e8e8', color: '#757575' }}>
-                Chat with your tailor about your order
+                {t('chat', 'system_msg')}
               </span>
             </div>
 
@@ -145,9 +147,9 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
                   style={{ background: '#fce4ec' }}>
                   <Scissors size={28} color="#e91e8c" />
                 </div>
-                <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>Start the conversation!</p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>{t('chat', 'start')}</p>
                 <p style={{ fontSize: 13, color: '#9e9e9e', textAlign: 'center' }}>
-                  Ask your tailor about materials, style, timeline, and more.
+                  {t('chat', 'start_sub')}
                 </p>
               </div>
             )}
@@ -196,7 +198,7 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
+            placeholder={t('chat', 'type_message')}
             rows={1}
             className="w-full px-4 py-3 rounded-2xl resize-none outline-none"
             style={{

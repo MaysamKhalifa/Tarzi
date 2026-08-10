@@ -12,9 +12,19 @@ export interface Profile {
   avatar_url: string | null
   role: 'customer' | 'tailor' | 'admin'
   is_approved: boolean
+  approval_status: 'pending' | 'approved' | 'rejected' | 'needs_info' | null
+  approval_notes: string | null
   notification_preferences: Record<string, boolean> | null
   created_at: string
   updated_at: string
+}
+
+export interface TailorService {
+  id: string
+  tailor_id: string
+  service_type: 'alterations' | 'from_scratch' | 'upcycling'
+  price_from: number
+  created_at: string
 }
 
 export interface Measurement {

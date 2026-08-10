@@ -13,6 +13,7 @@ import BottomNav from '@/components/layout/BottomNav'
 import PageHeader from '@/components/layout/PageHeader'
 import { useApp } from '@/lib/context/AppContext'
 import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/context/LanguageContext'
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), {
   ssr: false,
@@ -46,6 +47,7 @@ const TIME_SLOTS = generateTimeSlots()
 
 export default function BagPage() {
   const router = useRouter()
+  const { t, isRTL } = useLanguage()
   const { cart, removeFromCart, clearCart, cartTotal, user } = useApp()
   const [pickupDate, setPickupDate] = useState('')
   const [pickupTime, setPickupTime] = useState('')
@@ -86,7 +88,7 @@ export default function BagPage() {
   const handleCheckout = async () => {
     if (!user) { router.push('/login'); return }
     if (!pickupDate || !pickupTime || !address.trim() || cart.length === 0) {
-      setOrderError('Please select a pickup date, time, and enter your address.')
+      setOrderError(t('bag', 'err_missing'))
       return
     }
 
@@ -125,7 +127,7 @@ export default function BagPage() {
         const { data: newOrder, error } = await supabase.from('orders').insert({
           user_id:         user.id,
           tailor_id:       safeTailorId,
-          tailor_name:     safeTailorId ? (item.tailorName || null) : null,
+          tailor_name:     safeTailorId ? (item.tailorName || '') : '',
           service_type:    item.serviceType,
           garment_type:    item.garmentType,
           gender:          item.gender,
@@ -144,8 +146,8 @@ export default function BagPage() {
           console.error('Order insert error:', error)
           setOrderError(
             error.message?.includes('policy') || error.code === '42501'
-              ? 'Permission denied. Please log out and log back in, then try again.'
-              : `Could not place order: ${error.message}`
+              ? t('bag', 'err_permission')
+              : `${t('bag', 'err_could_not_place')} ${error.message}`
           )
           return   // finally will reset placing
         }
@@ -167,7 +169,7 @@ export default function BagPage() {
       setOrdered(true)
     } catch (err) {
       console.error('Checkout error:', err)
-      setOrderError('Something went wrong. Please try again.')
+      setOrderError(t('bag', 'err_generic'))
     } finally {
       // Always reset the loading state — even if an early return happened
       setPlacing(false)
@@ -190,17 +192,17 @@ export default function BagPage() {
         <div className="w-24 h-24 rounded-full flex items-center justify-center mb-5" style={{ background: '#e8f5e9' }}>
           <CheckCircle size={48} color="#4caf50" />
         </div>
-        <h2 style={{ fontSize: 26, fontWeight: 800, color: '#1a1a1a', marginBottom: 8 }}>Order Placed! 🎉</h2>
+        <h2 style={{ fontSize: 26, fontWeight: 800, color: '#1a1a1a', marginBottom: 8 }}>{t('bag', 'order_placed')}</h2>
         <p style={{ color: '#9e9e9e', fontSize: 14, lineHeight: 1.7, marginBottom: 32 }}>
-          Your order has been placed successfully. The tailor will confirm shortly and arrange pickup.
+          {t('bag', 'order_placed_msg')}
         </p>
         <Link href="/orders"
           className="w-full py-4 rounded-full text-white font-bold text-base text-center block"
           style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-          View My Orders
+          {t('bag', 'view_orders')}
         </Link>
         <Link href="/home" style={{ color: '#9e9e9e', fontSize: 14, marginTop: 16, display: 'block' }}>
-          Continue Shopping
+          {t('bag', 'continue')}
         </Link>
         <BottomNav />
       </div>
@@ -208,18 +210,18 @@ export default function BagPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-white" style={{ paddingBottom: 160 }}>
-      <PageHeader title="My Bag" subtitle={`${cart.length} item${cart.length !== 1 ? 's' : ''}`} showBack={false} />
+    <div className="min-h-dvh bg-white" dir={isRTL ? 'rtl' : 'ltr'} style={{ paddingBottom: 160 }}>
+      <PageHeader title={t('bag', 'title')} subtitle={`${cart.length} item${cart.length !== 1 ? 's' : ''}`} showBack={false} />
 
       {cart.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
           <ShoppingBag size={56} color="#e8e8e8" className="mb-4" />
-          <p style={{ fontSize: 18, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>Your bag is empty</p>
-          <p style={{ color: '#9e9e9e', fontSize: 14, marginBottom: 24 }}>Add services to get started</p>
+          <p style={{ fontSize: 18, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>{t('bag', 'empty')}</p>
+          <p style={{ color: '#9e9e9e', fontSize: 14, marginBottom: 24 }}>{t('bag', 'empty_sub')}</p>
           <Link href="/home"
             className="px-8 py-3 rounded-full text-white font-bold text-sm"
             style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-            Browse Services
+            {t('bag', 'browse')}
           </Link>
         </div>
       ) : (
@@ -268,7 +270,7 @@ export default function BagPage() {
 
           {/* Order summary */}
           <div className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
-            <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>Order Summary</p>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>{t('bag', 'summary')}</p>
             {cart.map((item, i) => (
               <div key={i} className="flex justify-between mb-2">
                 <span style={{ fontSize: 13, color: '#555' }}>{item.garmentType} ({item.serviceType.replace('_', ' ')})</span>
@@ -276,23 +278,23 @@ export default function BagPage() {
               </div>
             ))}
             <div style={{ borderTop: '1px solid #e8e8e8', marginTop: 10, paddingTop: 10 }} className="flex justify-between">
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>Total</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>{t('bag', 'total')}</span>
               <span style={{ fontSize: 17, fontWeight: 800, color: '#e91e8c' }}>AED {cartTotal.toFixed(2)}</span>
             </div>
-            <p style={{ fontSize: 11, color: '#bbb', marginTop: 6 }}>Final price confirmed by tailor • Delivery decided by tailor</p>
+            <p style={{ fontSize: 11, color: '#bbb', marginTop: 6 }}>{t('bag', 'final_note')}</p>
           </div>
 
           {/* Pickup section */}
           <div>
             <p style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>
               <MapPin size={15} className="inline mr-1" color="#e91e8c" />
-              Pickup Details
+              {t('bag', 'pickup')}
             </p>
 
             {/* Pickup date — 14 days, horizontal scroll */}
             <div className="mb-4">
               <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-                <Calendar size={12} className="inline mr-1" /> Pickup Date *
+                <Calendar size={12} className="inline mr-1" /> {t('bag', 'pickup_date')} *
               </label>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                 {dates.map(d => {
@@ -327,7 +329,7 @@ export default function BagPage() {
             {/* Pickup time — scrollable grid */}
             <div className="mb-4">
               <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-                <Clock size={12} className="inline mr-1" /> Pickup Time *
+                <Clock size={12} className="inline mr-1" /> {t('bag', 'pickup_time')} *
               </label>
               <div className="overflow-x-auto no-scrollbar pb-2">
                 <div className="flex gap-2" style={{ width: 'max-content' }}>
@@ -357,19 +359,19 @@ export default function BagPage() {
             {/* Address */}
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-                Pickup Address *
+                {t('bag', 'pickup_address')} *
               </label>
 
               <div className="flex gap-2 mb-3">
                 <button type="button" onClick={() => setShowMap(s => !s)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all"
                   style={{ border: `2px solid ${showMap ? '#e91e8c' : '#e8e8e8'}`, background: showMap ? '#fce4ec' : 'white', color: showMap ? '#e91e8c' : '#555' }}>
-                  <MapPin size={13} /> {showMap ? 'Hide Map' : 'Pick on Map'}
+                  <MapPin size={13} /> {showMap ? t('bag', 'hide_map') : t('bag', 'pick_map')}
                 </button>
                 <button type="button" onClick={handleDetectLocation} disabled={locating}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all"
                   style={{ border: '2px solid #e8e8e8', background: 'white', color: '#555' }}>
-                  <Navigation size={13} /> {locating ? 'Locating...' : 'Use My Location'}
+                  <Navigation size={13} /> {locating ? t('bag', 'locating') : t('bag', 'use_location')}
                 </button>
               </div>
 
@@ -385,7 +387,7 @@ export default function BagPage() {
                     }}
                   />
                   <p style={{ fontSize: 11, color: '#9e9e9e', marginTop: 6, textAlign: 'center' }}>
-                    Tap anywhere on the map to set pickup location
+                    {t('bag', 'map_note')}
                   </p>
                 </div>
               )}
@@ -393,7 +395,7 @@ export default function BagPage() {
               <textarea
                 value={address}
                 onChange={e => setAddress(e.target.value)}
-                placeholder="Villa 12, Street 5, Mirdif, Dubai"
+                placeholder={t('bag', 'address_placeholder')}
                 rows={2}
                 className="w-full px-4 py-3 rounded-xl outline-none"
                 style={{ border: `1.5px solid ${address.trim() ? '#e91e8c' : '#e8e8e8'}`, background: '#fafafa', fontSize: 14, resize: 'none' }}
@@ -406,7 +408,7 @@ export default function BagPage() {
           {/* Readiness indicator */}
           {!isReady && (
             <div className="px-4 py-3 rounded-xl text-sm" style={{ background: '#fffde7', color: '#f57c00', border: '1px solid #fff9c4' }}>
-              {!pickupDate ? '📅 Select a pickup date' : !pickupTime ? '🕐 Select a pickup time' : !address.trim() ? '📍 Enter your pickup address' : ''}
+              {!pickupDate ? t('bag', 'select_date') : !pickupTime ? t('bag', 'select_time') : !address.trim() ? t('bag', 'enter_address') : ''}
             </div>
           )}
         </div>
@@ -445,10 +447,10 @@ export default function BagPage() {
             {placing ? (
               <>
                 <div className="w-4 h-4 rounded-full border-2 border-white/50 border-t-white animate-spin" />
-                Placing order...
+                {t('bag', 'placing')}
               </>
             ) : (
-              <>Check Out • AED {cartTotal.toFixed(2)} <ChevronRight size={18} /></>
+              <>{t('bag', 'checkout')} • AED {cartTotal.toFixed(2)} <ChevronRight size={18} /></>
             )}
           </button>
         </div>

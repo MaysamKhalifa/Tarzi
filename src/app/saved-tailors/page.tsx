@@ -20,7 +20,7 @@ interface SavedTailorProfile {
 
 export default function SavedTailorsPage() {
   const { user, loading: authLoading } = useApp()
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const [savedTailors, setSavedTailors] = useState<SavedTailorProfile[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -29,43 +29,47 @@ export default function SavedTailorsPage() {
     if (!user) { setLoading(false); return }
 
     const fetchSaved = async () => {
-      const supabase = createClient()
+      try {
+        const supabase = createClient()
 
-      // 1. Get saved tailor IDs
-      const { data: savedRows } = await supabase
-        .from('saved_tailors')
-        .select('tailor_id')
-        .eq('user_id', user.id)
+        // 1. Get saved tailor IDs
+        const { data: savedRows } = await supabase
+          .from('saved_tailors')
+          .select('tailor_id')
+          .eq('user_id', user.id)
 
-      const ids = (savedRows || []).map((r: { tailor_id: string }) => r.tailor_id)
+        const ids = (savedRows || []).map((r: { tailor_id: string }) => r.tailor_id)
 
-      if (ids.length === 0) {
-        setSavedTailors([])
+        if (ids.length === 0) {
+          setSavedTailors([])
+          return
+        }
+
+        // 2. Load real tailor profiles by ID
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, shop_name, avatar_url, city, area, specialties, availability')
+          .in('id', ids)
+
+        const mapped: SavedTailorProfile[] = (profiles || []).map((p: {
+          id: string; full_name: string | null; shop_name: string | null;
+          avatar_url: string | null; city: string | null; area: string | null;
+          specialties: string[] | null; availability: string | null;
+        }) => ({
+          id: p.id,
+          name: p.shop_name || p.full_name || 'Unknown Tailor',
+          location: [p.area, p.city].filter(Boolean).join(', '),
+          avatar_url: p.avatar_url,
+          specialties: p.specialties || [],
+          is_available: !!p.availability,
+        }))
+
+        setSavedTailors(mapped)
+      } catch (err) {
+        console.error('Failed to load saved tailors:', err)
+      } finally {
         setLoading(false)
-        return
       }
-
-      // 2. Load real tailor profiles by ID
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, shop_name, avatar_url, city, area, specialties, availability')
-        .in('id', ids)
-
-      const mapped: SavedTailorProfile[] = (profiles || []).map((p: {
-        id: string; full_name: string | null; shop_name: string | null;
-        avatar_url: string | null; city: string | null; area: string | null;
-        specialties: string[] | null; availability: string | null;
-      }) => ({
-        id: p.id,
-        name: p.shop_name || p.full_name || 'Unknown Tailor',
-        location: [p.area, p.city].filter(Boolean).join(', '),
-        avatar_url: p.avatar_url,
-        specialties: p.specialties || [],
-        is_available: !!p.availability,
-      }))
-
-      setSavedTailors(mapped)
-      setLoading(false)
     }
 
     fetchSaved()
@@ -83,7 +87,7 @@ export default function SavedTailorsPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-white pb-24">
+    <div className="min-h-dvh bg-white pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="px-5 pt-12 pb-5"
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
@@ -102,12 +106,12 @@ export default function SavedTailorsPage() {
           <div className="text-center py-16">
             <Heart size={48} color="#e8e8e8" className="mx-auto mb-4" />
             <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
-              Sign in to see saved tailors
+              {t('saved_tailors', 'sign_in_title')}
             </p>
             <Link href="/login"
               className="px-6 py-3 rounded-full text-white font-bold text-sm inline-block mt-2"
               style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-              Log In
+              {t('saved_tailors', 'log_in')}
             </Link>
           </div>
         ) : savedTailors.length === 0 ? (
@@ -131,7 +135,7 @@ export default function SavedTailorsPage() {
         ) : (
           <div className="flex flex-col gap-3">
             <p style={{ fontSize: 13, color: '#9e9e9e', marginBottom: 4 }}>
-              {savedTailors.length} saved tailor{savedTailors.length !== 1 ? 's' : ''}
+              {savedTailors.length} {savedTailors.length === 1 ? t('saved_tailors', 'count_one') : t('saved_tailors', 'count_other')}
             </p>
             {savedTailors.map(tailor => (
               <div key={tailor.id} className="flex items-center gap-3 p-4 rounded-2xl"

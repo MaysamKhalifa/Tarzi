@@ -10,7 +10,7 @@ import LanguageSelector from '@/components/LanguageSelector'
 
 export default function LoginPage() {
   const router = useRouter()
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) { setError('Please fill in all fields'); return }
+    if (!email || !password) { setError(t('login', 'err_fill_fields')); return }
     setLoading(true)
     setError('')
     try {
@@ -41,13 +41,13 @@ export default function LoginPage() {
         router.replace('/home')
       }
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(t('login', 'err_generic'))
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-dvh flex flex-col bg-white">
+    <div className="min-h-dvh flex flex-col bg-white" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Pink header with branding */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 pt-16 pb-8"
         style={{ background: 'linear-gradient(160deg, #e91e8c 0%, #f06292 50%, #fce4ec 100%)' }}>
@@ -56,7 +56,7 @@ export default function LoginPage() {
           <Scissors size={40} color="#e91e8c" strokeWidth={1.8} />
         </div>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: 'white', letterSpacing: -0.5 }}>tarzi</h1>
-        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 15, marginTop: 4 }}>Your tailor, your style</p>
+        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 15, marginTop: 4 }}>{t('login', 'slogan')}</p>
       </div>
 
       {/* Login form */}
@@ -80,7 +80,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@email.com"
+              placeholder={t('login', 'email_placeholder')}
               autoComplete="email"
               className="w-full px-4 py-3.5 rounded-xl outline-none transition-all"
               style={{ border: '1.5px solid #e8e8e8', background: '#fafafa', fontSize: 15 }}
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Enter your password"
+                placeholder={t('login', 'password_placeholder')}
                 autoComplete="current-password"
                 className="w-full px-4 py-3.5 rounded-xl outline-none transition-all pr-12"
                 style={{ border: '1.5px solid #e8e8e8', background: '#fafafa', fontSize: 15 }}

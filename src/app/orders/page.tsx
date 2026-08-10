@@ -12,23 +12,23 @@ import type { Order } from '@/types/database'
 
 type Tab = 'in_progress' | 'done'
 
-const STATUS_CONFIG = {
-  pending:     { label: 'Pending',     color: '#f57c00', bg: '#fff3e0', icon: Clock },
-  confirmed:   { label: 'Confirmed',   color: '#1565c0', bg: '#e3f2fd', icon: CheckCircle },
-  accepted:    { label: 'Accepted',    color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
-  in_progress: { label: 'In Progress', color: '#7b1fa2', bg: '#f3e5f5', icon: Scissors },
-  ready:       { label: 'Ready',       color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
-  delivered:   { label: 'Delivered',   color: '#2e7d32', bg: '#e8f5e9', icon: Truck },
-  cancelled:   { label: 'Cancelled',   color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
-  declined:    { label: 'Declined',    color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
-}
+const STATUS_META = {
+  pending:     { statusKey: 'status_pending',     color: '#f57c00', bg: '#fff3e0', icon: Clock },
+  confirmed:   { statusKey: 'status_confirmed',   color: '#1565c0', bg: '#e3f2fd', icon: CheckCircle },
+  accepted:    { statusKey: 'status_accepted',    color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
+  in_progress: { statusKey: 'status_in_progress', color: '#7b1fa2', bg: '#f3e5f5', icon: Scissors },
+  ready:       { statusKey: 'status_ready',       color: '#2e7d32', bg: '#e8f5e9', icon: CheckCircle },
+  delivered:   { statusKey: 'status_delivered',   color: '#2e7d32', bg: '#e8f5e9', icon: Truck },
+  cancelled:   { statusKey: 'status_cancelled',   color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
+  declined:    { statusKey: 'status_declined',    color: '#d32f2f', bg: '#fff0f0', icon: XCircle },
+} as const
 
 const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling: RefreshCw }
 
 export default function OrdersPage() {
   // Pull both user AND the auth-loading flag from context
   const { user, loading: authLoading } = useApp()
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const [orders, setOrders] = useState<Order[]>([])
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
@@ -44,11 +44,13 @@ export default function OrdersPage() {
     const supabase = createClient()
 
     const loadOrders = () => {
-      supabase
-        .from('orders')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      Promise.resolve(
+        supabase
+          .from('orders')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+      )
         .then(({ data, error }) => {
           if (error) {
             console.error('Orders fetch error:', error)
@@ -58,9 +60,17 @@ export default function OrdersPage() {
           }
           setOrdersLoading(false)
         })
+        .catch((err: unknown) => {
+          console.error('Orders fetch threw:', err)
+          setFetchError(err instanceof Error ? err.message : t('orders', 'err_generic'))
+          setOrdersLoading(false)
+        })
     }
 
     loadOrders()
+
+    // Safety net: never let the spinner hang forever if the request stalls
+    const safetyTimer = setTimeout(() => setOrdersLoading(false), 10000)
 
     // Realtime: update individual orders when tailor changes status/price
     const channel = supabase
@@ -77,8 +87,8 @@ export default function OrdersPage() {
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [user?.id, authLoading])
+    return () => { supabase.removeChannel(channel); clearTimeout(safetyTimer) }
+  }, [user?.id, authLoading, t])
 
   const doneStatuses = ['delivered', 'cancelled', 'declined']
   const inProgress = orders.filter(o => !doneStatuses.includes(o.status))
@@ -86,7 +96,7 @@ export default function OrdersPage() {
   const displayed  = tab === 'in_progress' ? inProgress : done
 
   return (
-    <div className="min-h-dvh bg-white pb-24">
+    <div className="min-h-dvh bg-white pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Pink header */}
       <div className="px-5 pt-12 pb-5"
         style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
@@ -112,22 +122,22 @@ export default function OrdersPage() {
         {(authLoading || ordersLoading) ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-10 h-10 rounded-full border-2 border-pink-200 border-t-pink-500 animate-spin" />
-            <p style={{ fontSize: 13, color: '#9e9e9e' }}>Loading your orders…</p>
+            <p style={{ fontSize: 13, color: '#9e9e9e' }}>{t('orders', 'loading')}</p>
           </div>
         ) : !user ? (
           /* Not logged in */
           <div className="text-center py-16">
             <Package size={48} color="#e8e8e8" className="mx-auto mb-4" />
             <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
-              Sign in to view orders
+              {t('orders', 'sign_in_title')}
             </p>
             <p style={{ color: '#9e9e9e', fontSize: 13, marginBottom: 20 }}>
-              Your orders will appear here once you log in
+              {t('orders', 'sign_in_sub')}
             </p>
             <Link href="/login"
               className="px-6 py-3 rounded-full text-white font-bold text-sm inline-block"
               style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-              Log In
+              {t('orders', 'log_in')}
             </Link>
           </div>
         ) : fetchError ? (
@@ -135,27 +145,33 @@ export default function OrdersPage() {
           <div className="text-center py-12">
             <div className="px-4 py-3 rounded-xl mb-4 text-sm"
               style={{ background: '#fff0f0', color: '#d32f2f', border: '1px solid #ffcdd2' }}>
-              ⚠️ Could not load orders: {fetchError}
+              ⚠️ {t('orders', 'err_could_not_load')} {fetchError}
             </div>
             <button
               onClick={() => {
                 setOrdersLoading(true)
                 setFetchError('')
                 const supabase = createClient()
-                supabase
-                  .from('orders')
-                  .select('*')
-                  .eq('user_id', user!.id)
-                  .order('created_at', { ascending: false })
+                Promise.resolve(
+                  supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('user_id', user!.id)
+                    .order('created_at', { ascending: false })
+                )
                   .then(({ data, error }) => {
                     if (error) setFetchError(error.message)
                     else setOrders(data || [])
                     setOrdersLoading(false)
                   })
+                  .catch((err: unknown) => {
+                    setFetchError(err instanceof Error ? err.message : t('orders', 'err_generic'))
+                    setOrdersLoading(false)
+                  })
               }}
               className="px-6 py-2.5 rounded-full text-white font-semibold text-sm"
               style={{ background: '#e91e8c' }}>
-              Try Again
+              {t('orders', 'try_again')}
             </button>
           </div>
         ) : displayed.length === 0 ? (
@@ -180,8 +196,9 @@ export default function OrdersPage() {
           /* Order cards */
           <div className="flex flex-col gap-3">
             {displayed.map(order => {
-              const StatusCfg = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
+              const StatusCfg = STATUS_META[order.status as keyof typeof STATUS_META] || STATUS_META.pending
               const StatusIcon = StatusCfg.icon
+              const StatusLabel = t('orders', StatusCfg.statusKey)
               const svc = order.service_type as keyof typeof SERVICE_ICONS
               const ServiceIcon = SERVICE_ICONS[svc] || Scissors
 
@@ -202,21 +219,21 @@ export default function OrdersPage() {
                     <span className="flex items-center gap-1 px-2.5 py-1 rounded-xl"
                       style={{ background: StatusCfg.bg, fontSize: 11, fontWeight: 600, color: StatusCfg.color }}>
                       <StatusIcon size={11} />
-                      {StatusCfg.label}
+                      {StatusLabel}
                     </span>
                   </div>
 
                   <div style={{ fontSize: 12, color: '#555' }} className="flex flex-col gap-1 mb-3">
-                    <span>🧵 {order.service_type.replace('_', ' ')} • {order.tailor_name || 'Pending assignment'}</span>
+                    <span>🧵 {order.service_type.replace('_', ' ')} • {order.tailor_name || t('orders', 'pending_assignment')}</span>
                     {order.pickup_date && (
-                      <span>📅 Pickup: {new Date(order.pickup_date).toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: 'numeric' })} at {order.pickup_time}</span>
+                      <span>📅 {t('orders', 'pickup_label')}: {new Date(order.pickup_date).toLocaleDateString('en-AE', { weekday: 'short', month: 'short', day: 'numeric' })} {t('orders', 'at_label')} {order.pickup_time}</span>
                     )}
                     {order.tailor_price
-                      ? <span>💰 AED {order.tailor_price} <span style={{ color: '#9e9e9e' }}>(confirmed by tailor)</span></span>
+                      ? <span>💰 AED {order.tailor_price} <span style={{ color: '#9e9e9e' }}>({t('orders', 'confirmed_by_tailor')})</span></span>
                       : order.price ? <span>💰 AED {order.price}</span> : null}
                     {order.tailor_note && (
                       <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '4px 8px', borderRadius: 6, marginTop: 2 }}>
-                        💬 Tailor note: {order.tailor_note}
+                        💬 {t('orders', 'tailor_note_prefix')}: {order.tailor_note}
                       </span>
                     )}
                   </div>

@@ -1,19 +1,47 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PageHeader from '@/components/layout/PageHeader'
 import Link from 'next/link'
-import { Calendar, Clock, MapPin, CheckCircle, Star } from 'lucide-react'
-import { SAMPLE_TAILORS } from '@/lib/data/tailors'
+import { Calendar, Clock, MapPin, CheckCircle } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { useLanguage } from '@/lib/context/LanguageContext'
+import TailorPicker, { type RealTailor } from '@/components/TailorPicker'
 
 const TIME_SLOTS = ['9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '1:00 PM', '4:00 PM', '5:00 PM', '6:00 PM', '7:00 PM']
 
 export default function MeasurementByTailorPage() {
+  const { t, isRTL } = useLanguage()
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedTime, setSelectedTime] = useState('')
   const [selectedTailor, setSelectedTailor] = useState('')
   const [address, setAddress] = useState('')
   const [booked, setBooked] = useState(false)
+  const [tailors, setTailors] = useState<RealTailor[]>([])
+  const [tailorsLoading, setTailorsLoading] = useState(true)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('profiles')
+      .select('id, full_name, shop_name, area, city, avatar_url')
+      .eq('role', 'tailor')
+      .eq('is_approved', true)
+      .then(({ data, error }) => {
+        if (error || !data || data.length === 0) {
+          return supabase
+            .from('profiles')
+            .select('id, full_name, shop_name, area, city, avatar_url')
+            .eq('role', 'tailor')
+            .then(({ data: fallback }) => {
+              setTailors((fallback as RealTailor[]) || [])
+              setTailorsLoading(false)
+            })
+        }
+        setTailors((data as RealTailor[]) || [])
+        setTailorsLoading(false)
+      })
+  }, [])
 
   const handleBook = () => {
     if (!selectedDate || !selectedTime || !address) return
@@ -22,20 +50,19 @@ export default function MeasurementByTailorPage() {
 
   if (booked) {
     return (
-      <div className="min-h-dvh bg-white flex flex-col items-center justify-center px-6 text-center">
+      <div className="min-h-dvh bg-white flex flex-col items-center justify-center px-6 text-center" dir={isRTL ? 'rtl' : 'ltr'}>
         <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5"
           style={{ background: '#e8f5e9' }}>
           <CheckCircle size={40} color="#4caf50" />
         </div>
-        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a', marginBottom: 8 }}>Booking Confirmed!</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: '#1a1a1a', marginBottom: 8 }}>{t('measure_tailor', 'confirmed_title')}</h2>
         <p style={{ color: '#9e9e9e', fontSize: 14, lineHeight: 1.6, marginBottom: 28 }}>
-          A tailor will visit you on <strong>{selectedDate}</strong> at <strong>{selectedTime}</strong>.
-          You'll receive a confirmation shortly.
+          {t('measure_tailor', 'confirmed_msg').replace('{date}', selectedDate).replace('{time}', selectedTime)}
         </p>
         <Link href="/measurements"
           className="w-full py-4 rounded-full text-white font-bold text-base text-center block"
           style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-          Back to Measurements
+          {t('measure_tailor', 'back_to_measurements')}
         </Link>
       </div>
     )
@@ -54,54 +81,35 @@ export default function MeasurementByTailorPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-white pb-8">
-      <PageHeader title="Measurement by Tailor" subtitle="We come to you" />
+    <div className="min-h-dvh bg-white pb-8" dir={isRTL ? 'rtl' : 'ltr'}>
+      <PageHeader title={t('measure_tailor', 'title')} subtitle={t('measure_tailor', 'subtitle')} />
 
       <div className="px-5 py-4 flex flex-col gap-5">
         {/* Info card */}
         <div className="p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>🏠 Home Visit Service</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>{t('measure_tailor', 'info_title')}</p>
           <p style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
-            Our experienced tailors will visit your home and take all your measurements professionally. Free for bookings over AED 200.
+            {t('measure_tailor', 'info_body')}
           </p>
         </div>
 
-        {/* Select tailor (optional) */}
+        {/* Select tailor (optional) — searchable dropdown */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            Preferred Tailor (optional)
+            {t('measure_tailor', 'preferred_tailor')}
           </label>
-          <div className="flex flex-col gap-2">
-            {SAMPLE_TAILORS.slice(0, 3).map(t => (
-              <button key={t.id} onClick={() => setSelectedTailor(selectedTailor === t.id ? '' : t.id)}
-                className="flex items-center gap-3 p-3 rounded-xl transition-all text-left"
-                style={{
-                  border: `2px solid ${selectedTailor === t.id ? '#e91e8c' : '#e8e8e8'}`,
-                  background: selectedTailor === t.id ? '#fce4ec' : '#fafafa',
-                }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: '#e91e8c' }}>
-                  <span style={{ color: 'white', fontSize: 14, fontWeight: 700 }}>
-                    {t.name.charAt(0)}
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{t.name}</p>
-                  <div className="flex items-center gap-1">
-                    <Star size={11} color="#ffc107" fill="#ffc107" />
-                    <span style={{ fontSize: 12, color: '#9e9e9e' }}>{t.rating} • {t.experience_years}yr exp</span>
-                  </div>
-                </div>
-                {selectedTailor === t.id && <CheckCircle size={18} color="#e91e8c" />}
-              </button>
-            ))}
-          </div>
+          <TailorPicker
+            value={selectedTailor}
+            tailors={tailors}
+            loading={tailorsLoading}
+            onChange={(id) => setSelectedTailor(id)}
+          />
         </div>
 
         {/* Date selection */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            <Calendar size={14} className="inline mr-1" /> Select Date *
+            <Calendar size={14} className="inline mr-1" /> {t('measure_tailor', 'select_date')}
           </label>
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
             {dates.map(d => {
@@ -127,18 +135,18 @@ export default function MeasurementByTailorPage() {
         {/* Time selection */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 8 }}>
-            <Clock size={14} className="inline mr-1" /> Select Time *
+            <Clock size={14} className="inline mr-1" /> {t('measure_tailor', 'select_time')}
           </label>
           <div className="grid grid-cols-3 gap-2">
-            {TIME_SLOTS.map(t => (
-              <button key={t} onClick={() => setSelectedTime(t)}
+            {TIME_SLOTS.map(slot => (
+              <button key={slot} onClick={() => setSelectedTime(slot)}
                 className="py-2.5 rounded-xl text-sm font-semibold transition-all"
                 style={{
-                  border: `2px solid ${selectedTime === t ? '#e91e8c' : '#e8e8e8'}`,
-                  background: selectedTime === t ? '#fce4ec' : '#fafafa',
-                  color: selectedTime === t ? '#e91e8c' : '#555',
+                  border: `2px solid ${selectedTime === slot ? '#e91e8c' : '#e8e8e8'}`,
+                  background: selectedTime === slot ? '#fce4ec' : '#fafafa',
+                  color: selectedTime === slot ? '#e91e8c' : '#555',
                 }}>
-                {t}
+                {slot}
               </button>
             ))}
           </div>
@@ -147,10 +155,10 @@ export default function MeasurementByTailorPage() {
         {/* Address */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-            <MapPin size={14} className="inline mr-1" /> Your Address *
+            <MapPin size={14} className="inline mr-1" /> {t('measure_tailor', 'your_address')}
           </label>
           <textarea value={address} onChange={e => setAddress(e.target.value)}
-            placeholder="Villa 12, Street 5, Mirdif, Dubai"
+            placeholder={t('measure_tailor', 'address_placeholder')}
             rows={3}
             style={{ ...inputStyle, resize: 'none' as const }}
             onFocus={e => (e.target.style.borderColor = '#e91e8c')}
@@ -167,7 +175,7 @@ export default function MeasurementByTailorPage() {
               : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
             boxShadow: '0 4px 15px rgba(233, 30, 140, 0.3)',
           }}>
-          Book Measurement Visit
+          {t('measure_tailor', 'book_btn')}
         </button>
       </div>
     </div>

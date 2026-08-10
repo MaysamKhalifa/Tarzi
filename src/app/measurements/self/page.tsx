@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/layout/PageHeader'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
+import { useLanguage } from '@/lib/context/LanguageContext'
 import { Check } from 'lucide-react'
 
 type Gender = 'male' | 'female'
@@ -39,6 +40,7 @@ interface MeasureFieldProps {
 }
 
 function MeasureField({ label, field, fields, unit, update }: MeasureFieldProps) {
+  const { t } = useLanguage()
   return (
     <div>
       <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 5 }}>
@@ -51,7 +53,7 @@ function MeasureField({ label, field, fields, unit, update }: MeasureFieldProps)
           autoComplete="off"
           value={fields[field]}
           onChange={e => update(field, e.target.value)}
-          placeholder={unit === 'cm' ? 'e.g. 90' : 'e.g. 35'}
+          placeholder={unit === 'cm' ? t('measure_self', 'placeholder_cm') : t('measure_self', 'placeholder_in')}
           style={{ ...inputStyle, paddingRight: 42 }}
           onFocus={e => (e.target.style.borderColor = '#e91e8c')}
           onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
@@ -71,6 +73,7 @@ function MeasureField({ label, field, fields, unit, update }: MeasureFieldProps)
 export default function MeasureBySelfPage() {
   const router = useRouter()
   const { user } = useApp()
+  const { t, isRTL } = useLanguage()
   const [name, setName] = useState('')
   const [gender, setGender] = useState<Gender>('female')
   const [unit, setUnit] = useState<Unit>('cm')
@@ -92,8 +95,8 @@ export default function MeasureBySelfPage() {
   }
 
   const handleSave = async () => {
-    if (!name.trim()) { setError('Please enter a name for this measurement profile'); return }
-    if (!user) { setError('Please log in to save measurements'); return }
+    if (!name.trim()) { setError(t('measure_self', 'err_name_required')); return }
+    if (!user) { setError(t('measure_self', 'err_login_required')); return }
     setSaving(true)
     setError('')
     try {
@@ -118,13 +121,13 @@ export default function MeasureBySelfPage() {
       }
       const { error: insertError } = await supabase.from('measurements').insert(payload)
       if (insertError) {
-        setError(`Save failed: ${insertError.message}`)
+        setError(`${t('measure_self', 'err_save_failed')} ${insertError.message}`)
         return
       }
       setSuccess(true)
       setTimeout(() => router.push('/measurements'), 1400)
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
+      setError(t('measure_self', 'err_generic'))
       console.error('Measurements save error:', err)
     } finally {
       setSaving(false)
@@ -132,19 +135,19 @@ export default function MeasureBySelfPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-white pb-8">
+    <div className="min-h-dvh bg-white pb-8" dir={isRTL ? 'rtl' : 'ltr'}>
       <PageHeader
-        title="Measure by Myself"
-        subtitle={`Enter your measurements in ${unit}`}
+        title={t('measure_self', 'title')}
+        subtitle={`${t('measure_self', 'subtitle')} ${unit}`}
       />
 
       <div className="px-5 py-4 flex flex-col gap-5">
         {/* Tip banner */}
         <div className="p-4 rounded-2xl"
           style={{ background: 'linear-gradient(135deg, #fce4ec 0%, #f8bbd0 100%)' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>📏 Measurement Tips</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a', marginBottom: 4 }}>{t('measure_self', 'tips_title')}</p>
           <p style={{ fontSize: 12, color: '#757575', lineHeight: 1.6 }}>
-            Use a soft measuring tape. Stand straight, breathe normally. Measure close to the body without pulling tight.
+            {t('measure_self', 'tips_body')}
           </p>
         </div>
 
@@ -158,13 +161,13 @@ export default function MeasureBySelfPage() {
         {/* Profile name */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-            Profile Name * <span style={{ color: '#9e9e9e', fontWeight: 400, fontSize: 11 }}>(e.g. &quot;Khalifa&quot; or &quot;My Work Suit&quot;)</span>
+            {t('measure_self', 'profile_name')} <span style={{ color: '#9e9e9e', fontWeight: 400, fontSize: 11 }}>{t('measure_self', 'profile_name_hint')}</span>
           </label>
           <input
             type="text"
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="e.g. Hamda's Abayas"
+            placeholder={t('measure_self', 'profile_name_placeholder')}
             style={inputStyle}
             onFocus={e => (e.target.style.borderColor = '#e91e8c')}
             onBlur={e => (e.target.style.borderColor = '#e8e8e8')}
@@ -173,7 +176,7 @@ export default function MeasureBySelfPage() {
 
         {/* Gender */}
         <div>
-          <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>Gender</label>
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>{t('measure_self', 'gender')}</label>
           <div className="flex gap-3">
             {(['female', 'male'] as Gender[]).map(g => (
               <button key={g} onClick={() => setGender(g)}
@@ -183,7 +186,7 @@ export default function MeasureBySelfPage() {
                   background: gender === g ? '#fce4ec' : '#fafafa',
                   color: gender === g ? '#e91e8c' : '#9e9e9e',
                 }}>
-                {g === 'female' ? '👗 Female' : '👔 Male'}
+                {g === 'female' ? t('measure_self', 'female') : t('measure_self', 'male')}
               </button>
             ))}
           </div>
@@ -192,7 +195,7 @@ export default function MeasureBySelfPage() {
         {/* Unit selector */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-            Unit of Measurement
+            {t('measure_self', 'unit_label')}
           </label>
           <div className="flex gap-3">
             {(['cm', 'in'] as Unit[]).map(u => (
@@ -203,7 +206,7 @@ export default function MeasureBySelfPage() {
                   background: unit === u ? '#fce4ec' : '#fafafa',
                   color: unit === u ? '#e91e8c' : '#9e9e9e',
                 }}>
-                {u === 'cm' ? '📐 Centimeters (cm)' : '📏 Inches (in)'}
+                {u === 'cm' ? t('measure_self', 'unit_cm') : t('measure_self', 'unit_in')}
               </button>
             ))}
           </div>
@@ -211,44 +214,44 @@ export default function MeasureBySelfPage() {
 
         {/* Upper body */}
         <div>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>Upper Body</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>{t('measure_self', 'upper_body')}</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MeasureField label="Chest / Bust" field="chest" fields={fields} unit={unit} update={update} />
-            <MeasureField label="Waist" field="waist" fields={fields} unit={unit} update={update} />
-            <MeasureField label="Hips" field="hips" fields={fields} unit={unit} update={update} />
-            <MeasureField label="Shoulder Width" field="shoulder" fields={fields} unit={unit} update={update} />
-            <MeasureField label="Arm Length" field="armLength" fields={fields} unit={unit} update={update} />
-            <MeasureField label="Neck" field="neck" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'chest')} field="chest" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'waist')} field="waist" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'hips')} field="hips" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'shoulder')} field="shoulder" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'arm_length')} field="armLength" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'neck')} field="neck" fields={fields} unit={unit} update={update} />
           </div>
         </div>
 
         {/* Lower body */}
         <div>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>Lower Body</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>{t('measure_self', 'lower_body')}</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MeasureField label="Inseam" field="inseam" fields={fields} unit={unit} update={update} />
-            <MeasureField label="Thigh" field="thigh" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'inseam')} field="inseam" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'thigh')} field="thigh" fields={fields} unit={unit} update={update} />
           </div>
         </div>
 
         {/* General */}
         <div>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>General</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 12 }}>{t('measure_self', 'general')}</h3>
           <div className="grid grid-cols-2 gap-3">
-            <MeasureField label="Height" field="height" fields={fields} unit={unit} update={update} />
-            <MeasureField label="Weight (kg)" field="weight" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'height')} field="height" fields={fields} unit={unit} update={update} />
+            <MeasureField label={t('measure_self', 'weight')} field="weight" fields={fields} unit={unit} update={update} />
           </div>
         </div>
 
         {/* Notes */}
         <div>
           <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
-            Notes <span style={{ color: '#9e9e9e', fontWeight: 400, fontSize: 11 }}>(optional)</span>
+            {t('measure_self', 'notes')} <span style={{ color: '#9e9e9e', fontWeight: 400, fontSize: 11 }}>{t('measure_self', 'notes_optional')}</span>
           </label>
           <textarea
             value={fields.notes}
             onChange={e => update('notes', e.target.value)}
-            placeholder="Any special notes for the tailor..."
+            placeholder={t('measure_self', 'notes_placeholder')}
             rows={3}
             style={{ ...inputStyle, resize: 'none' as const }}
             onFocus={e => (e.target.style.borderColor = '#e91e8c')}
@@ -259,8 +262,8 @@ export default function MeasureBySelfPage() {
         {/* Default toggle */}
         <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: '#f9f9f9' }}>
           <div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>Set as default</p>
-            <p style={{ fontSize: 12, color: '#9e9e9e' }}>Auto-fill orders with these measurements</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{t('measure_self', 'set_default')}</p>
+            <p style={{ fontSize: 12, color: '#9e9e9e' }}>{t('measure_self', 'set_default_desc')}</p>
           </div>
           <button
             onClick={() => setIsDefault(!isDefault)}
@@ -281,7 +284,7 @@ export default function MeasureBySelfPage() {
             background: success ? '#4caf50' : saving ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)',
             boxShadow: '0 4px 15px rgba(233, 30, 140, 0.3)',
           }}>
-          {success ? (<><Check size={18} /> Saved!</>) : saving ? 'Saving...' : 'Save Measurements'}
+          {success ? (<><Check size={18} /> {t('measure_self', 'saved')}</>) : saving ? t('measure_self', 'saving') : t('measure_self', 'save_btn')}
         </button>
       </div>
     </div>

@@ -11,15 +11,15 @@ import type { Order } from '@/types/database'
 
 const SERVICE_ICONS = { alterations: Scissors, from_scratch: Sparkles, upcycling: RefreshCw }
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr: string, t: ReturnType<typeof useLanguage>['t']) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const m = Math.floor(diff / 60000)
   const h = Math.floor(diff / 3600000)
   const d = Math.floor(diff / 86400000)
-  if (m < 1) return 'Just now'
-  if (m < 60) return `${m}m ago`
-  if (h < 24) return `${h}h ago`
-  return `${d}d ago`
+  if (m < 1) return t('chat', 'just_now')
+  if (m < 60) return t('chat', 'min_ago').replace('{n}', String(m))
+  if (h < 24) return t('chat', 'hr_ago').replace('{n}', String(h))
+  return t('chat', 'day_ago').replace('{n}', String(d))
 }
 
 export default function ChatListPage() {
@@ -33,16 +33,26 @@ export default function ChatListPage() {
     if (!user) { setLoading(false); return }
 
     const supabase = createClient()
-    supabase
-      .from('orders')
-      .select('*')
-      .eq('user_id', user.id)
-      .not('status', 'eq', 'delivered')
-      .order('created_at', { ascending: false })
+    const safetyTimer = setTimeout(() => setLoading(false), 10000)
+
+    Promise.resolve(
+      supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .not('status', 'eq', 'delivered')
+        .order('created_at', { ascending: false })
+    )
       .then(({ data }) => {
         setOrders(data || [])
         setLoading(false)
       })
+      .catch((err: unknown) => {
+        console.error('Failed to load chats:', err)
+        setLoading(false)
+      })
+
+    return () => clearTimeout(safetyTimer)
   }, [user, authLoading])
 
   return (
@@ -65,12 +75,12 @@ export default function ChatListPage() {
           <div className="text-center py-16">
             <MessageCircle size={48} color="#e8e8e8" className="mx-auto mb-4" />
             <p style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 }}>
-              Sign in to view chats
+              {t('chat', 'sign_in_title')}
             </p>
             <Link href="/login"
               className="px-6 py-3 rounded-full text-white font-bold text-sm inline-block mt-2"
               style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-              Log In
+              {t('chat', 'log_in')}
             </Link>
           </div>
         ) : orders.length === 0 ? (
@@ -88,7 +98,7 @@ export default function ChatListPage() {
             <Link href="/home"
               className="mt-6 px-8 py-3 rounded-full text-white font-bold text-sm"
               style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-              Browse Services
+              {t('chat', 'browse_services')}
             </Link>
           </div>
         ) : (
@@ -112,14 +122,14 @@ export default function ChatListPage() {
                   </div>
                   <div className="flex-1 min-w-0" style={{ textAlign: isRTL ? 'right' : 'left' }}>
                     <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a' }}>
-                      {order.tailor_name || 'Pending tailor'}
+                      {order.tailor_name || t('chat', 'pending_tailor')}
                     </p>
                     <p style={{ fontSize: 12, color: '#9e9e9e' }} className="truncate">
                       {order.garment_type} • #{order.order_number}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span style={{ fontSize: 11, color: '#bbb' }}>{timeAgo(order.created_at)}</span>
+                    <span style={{ fontSize: 11, color: '#bbb' }}>{timeAgo(order.created_at, t)}</span>
                     <div className="w-8 h-8 rounded-full flex items-center justify-center"
                       style={{ background: '#fce4ec' }}>
                       <MessageCircle size={15} color="#e91e8c" />

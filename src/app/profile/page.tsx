@@ -17,6 +17,7 @@ import LanguageSelector from '@/components/LanguageSelector'
 type ModalType = 'notifications' | 'payment' | 'settings' | 'help' | 'terms' | null
 
 function PhoneRow({ phone, onSave }: { phone: string; onSave: (v: string) => void }) {
+  const { t } = useLanguage()
   const [editing, setEditing] = useState(false)
   const [val, setVal] = useState(phone)
   if (editing) {
@@ -26,7 +27,7 @@ function PhoneRow({ phone, onSave }: { phone: string; onSave: (v: string) => voi
           type="tel"
           value={val}
           onChange={e => setVal(e.target.value)}
-          placeholder="+971 50 000 0000"
+          placeholder={t('profile', 'phone_placeholder')}
           autoFocus
           className="flex-1 px-2 py-1 rounded-lg text-xs outline-none min-w-0"
           style={{ border: '1.5px solid #e91e8c', fontSize: 12 }}
@@ -41,7 +42,7 @@ function PhoneRow({ phone, onSave }: { phone: string; onSave: (v: string) => voi
   }
   return (
     <div className="flex items-center gap-1 mt-0.5">
-      <p style={{ fontSize: 12, color: '#bbb' }}>{phone || 'Add phone number'}</p>
+      <p style={{ fontSize: 12, color: '#bbb' }}>{phone || t('profile', 'add_phone')}</p>
       <button onClick={() => { setVal(phone); setEditing(true) }}>
         <Edit3 size={11} color="#ddd" />
       </button>
@@ -52,7 +53,7 @@ function PhoneRow({ phone, onSave }: { phone: string; onSave: (v: string) => voi
 export default function ProfilePage() {
   const router = useRouter()
   const { user, profile, refreshProfile } = useApp()
-  const { t } = useLanguage()
+  const { t, isRTL } = useLanguage()
   const [editingName, setEditingName] = useState(false)
   const [newName, setNewName] = useState(profile?.full_name || '')
   const [saving, setSaving] = useState(false)
@@ -147,7 +148,7 @@ export default function ProfilePage() {
       ],
     },
     {
-      title: 'Payments',
+      title: t('profile', 'payments_title'),
       items: [
         { icon: CreditCard, label: t('profile', 'payment'), action: () => setActiveModal('payment') },
       ],
@@ -197,20 +198,20 @@ export default function ProfilePage() {
       ),
     },
     payment: {
-      title: 'Payment & Refunds',
+      title: t('payment_modal', 'title'),
       content: (
         <div className="flex flex-col gap-4">
           <div className="p-4 rounded-2xl" style={{ background: '#fce4ec' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#e91e8c', marginBottom: 4 }}>💳 Cash on Pickup</p>
-            <p style={{ fontSize: 13, color: '#555' }}>Currently we support cash payment when the tailor picks up or delivers your garment.</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#e91e8c', marginBottom: 4 }}>{t('payment_modal', 'cash_title')}</p>
+            <p style={{ fontSize: 13, color: '#555' }}>{t('payment_modal', 'cash_desc')}</p>
           </div>
           <div className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>Refund Policy</p>
-            <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6 }}>If you are unsatisfied with the work, contact your tailor within 48 hours of delivery. Refunds are handled case-by-case.</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>{t('payment_modal', 'refund_title')}</p>
+            <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6 }}>{t('payment_modal', 'refund_desc')}</p>
           </div>
           <div className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>Coming Soon</p>
-            <p style={{ fontSize: 13, color: '#555' }}>Credit/debit card payments via secure gateway — available in v2.0</p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>{t('payment_modal', 'coming_soon_title')}</p>
+            <p style={{ fontSize: 13, color: '#555' }}>{t('payment_modal', 'coming_soon_desc')}</p>
           </div>
         </div>
       ),
@@ -229,9 +230,9 @@ export default function ProfilePage() {
             <LanguageSelector userId={user?.id} />
           </div>
           {[
-            { label: 'Currency', value: 'AED (د.إ)' },
-            { label: 'Region', value: 'Dubai, UAE' },
-            { label: 'App Version', value: 'v1.0.0' },
+            { label: t('settings_modal', 'currency_label'), value: t('settings_modal', 'currency_value') },
+            { label: t('settings_modal', 'region_label'), value: t('settings_modal', 'region_value') },
+            { label: t('settings_modal', 'version_label'), value: t('settings_modal', 'version_value') },
           ].map(s => (
             <div key={s.label} className="flex justify-between items-center p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a1a' }}>{s.label}</span>
@@ -239,59 +240,59 @@ export default function ProfilePage() {
             </div>
           ))}
           <div className="p-4 rounded-2xl" style={{ background: '#fff3e0' }}>
-            <p style={{ fontSize: 13, color: '#f57c00' }}>More settings available in the mobile app</p>
+            <p style={{ fontSize: 13, color: '#f57c00' }}>{t('settings_modal', 'mobile_hint')}</p>
           </div>
         </div>
       ),
     },
     help: {
-      title: 'Help & Support',
+      title: t('help_modal', 'title'),
       content: (
         <div className="flex flex-col gap-4">
-          {[
-            { q: 'How do I book a tailor?', a: 'Browse services on the Home page, select a service, choose your garment type and tailor, then add to bag and checkout.' },
-            { q: 'How does pickup work?', a: 'During checkout, select a pickup date, time, and address. The tailor will arrive to collect your garment.' },
-            { q: 'Can I track my order?', a: 'Yes — go to Orders to see your order status, or use the Delivery page for step-by-step tracking.' },
-            { q: 'How do I contact my tailor?', a: 'Once an order is placed, tap "Chat" on the order card to message your tailor directly.' },
-            { q: 'Is my data safe?', a: 'Absolutely. All data is stored securely on Supabase with row-level security and encrypted auth.' },
-          ].map(({ q, a }) => (
+          {([
+            { q: t('help_modal', 'q1'), a: t('help_modal', 'a1') },
+            { q: t('help_modal', 'q2'), a: t('help_modal', 'a2') },
+            { q: t('help_modal', 'q3'), a: t('help_modal', 'a3') },
+            { q: t('help_modal', 'q4'), a: t('help_modal', 'a4') },
+            { q: t('help_modal', 'q5'), a: t('help_modal', 'a5') },
+          ]).map(({ q, a }) => (
             <div key={q} className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>❓ {q}</p>
               <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6 }}>{a}</p>
             </div>
           ))}
           <div className="p-4 rounded-2xl" style={{ background: '#fce4ec' }}>
-            <p style={{ fontSize: 14, fontWeight: 700, color: '#e91e8c', marginBottom: 2 }}>Still need help?</p>
-            <p style={{ fontSize: 13, color: '#555' }}>Email us at <strong>support@tarzi.ae</strong></p>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#e91e8c', marginBottom: 2 }}>{t('help_modal', 'still_need_help')}</p>
+            <p style={{ fontSize: 13, color: '#555' }}>{t('help_modal', 'email_line')} <strong>support@tarzi.ae</strong></p>
           </div>
         </div>
       ),
     },
     terms: {
-      title: 'Terms & Conditions',
+      title: t('terms_modal', 'title'),
       content: (
         <div className="flex flex-col gap-4">
-          {[
-            { title: '1. Service Agreement', text: 'Tarzi connects users with independent tailors. Tarzi is a platform and not directly responsible for the quality of tailoring work.' },
-            { title: '2. User Responsibilities', text: 'You agree to provide accurate measurements, clear descriptions, and be available at the selected pickup time.' },
-            { title: '3. Tailor Responsibilities', text: 'Tailors listed on Tarzi are vetted and agree to deliver work to the agreed standard within the agreed timeline.' },
-            { title: '4. Payments', text: 'All prices shown are estimates. Final pricing is agreed between the user and tailor. Tarzi does not process payments at this time.' },
-            { title: '5. Privacy', text: 'Your personal data is stored securely and never shared with third parties without consent. See our Privacy Policy for details.' },
-            { title: '6. Changes', text: 'Tarzi reserves the right to update these terms at any time. Continued use of the app constitutes acceptance.' },
-          ].map(({ title, text }) => (
+          {([
+            { title: t('terms_modal', 't1_title'), text: t('terms_modal', 't1_text') },
+            { title: t('terms_modal', 't2_title'), text: t('terms_modal', 't2_text') },
+            { title: t('terms_modal', 't3_title'), text: t('terms_modal', 't3_text') },
+            { title: t('terms_modal', 't4_title'), text: t('terms_modal', 't4_text') },
+            { title: t('terms_modal', 't5_title'), text: t('terms_modal', 't5_text') },
+            { title: t('terms_modal', 't6_title'), text: t('terms_modal', 't6_text') },
+          ]).map(({ title, text }) => (
             <div key={title} className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
               <p style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>{title}</p>
               <p style={{ fontSize: 13, color: '#555', lineHeight: 1.6 }}>{text}</p>
             </div>
           ))}
-          <p style={{ fontSize: 11, color: '#bbb', textAlign: 'center' }}>Last updated: April 2025 • Tarzi App</p>
+          <p style={{ fontSize: 11, color: '#bbb', textAlign: 'center' }}>{t('terms_modal', 'last_updated')}</p>
         </div>
       ),
     },
   }
 
   return (
-    <div className="min-h-dvh bg-white pb-24">
+    <div className="min-h-dvh bg-white pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Pink header */}
       <div className="px-5 pt-12 pb-16" style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: 'white' }}>{t('profile', 'title')}</h1>
@@ -342,13 +343,13 @@ export default function ProfilePage() {
                   <button onClick={handleSaveName} disabled={saving}
                     className="px-3 py-1.5 rounded-lg text-white text-xs font-bold flex-shrink-0"
                     style={{ background: '#e91e8c' }}>
-                    {saving ? '...' : 'Save'}
+                    {saving ? '...' : t('profile', 'save')}
                   </button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <p style={{ fontSize: 17, fontWeight: 700, color: '#1a1a1a' }} className="truncate">
-                    {profile?.full_name || 'Set your name'}
+                    {profile?.full_name || t('profile', 'set_name_placeholder')}
                   </p>
                   <button onClick={() => { setNewName(profile?.full_name || ''); setEditingName(true) }}>
                     <Edit3 size={14} color="#9e9e9e" />
@@ -412,7 +413,7 @@ export default function ProfilePage() {
         </button>
 
         <p style={{ textAlign: 'center', fontSize: 12, color: '#bbb', marginTop: 4 }}>
-          Tarzi v1.0.0
+          {t('profile', 'app_footer')}
         </p>
       </div>
 
