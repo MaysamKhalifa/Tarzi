@@ -1,34 +1,81 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Scissors } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/context/LanguageContext'
 import LanguageSelector from '@/components/LanguageSelector'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { t, isRTL } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [unconfirmed, setUnconfirmed] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resent, setResent] = useState(false)
+
+  // Surface errors forwarded from /auth/callback (e.g. an expired or
+  // already-used verification link) instead of silently landing on a plain
+  // login screen.
+  useEffect(() => {
+    const callbackError = searchParams.get('error')
+    if (!callbackError) return
+    console.error('[login] Received error from auth callback:', callbackError)
+    const lower = callbackError.toLowerCase()
+    if (lower.includes('confirm')) {
+      setError(t('login', 'err_not_confirmed'))
+      setUnconfirmed(true)
+    } else {
+      setError(t('login', 'err_verification_failed'))
+    }
+  }, [searchParams, t])
+
+  const handleResend = async () => {
+    if (!email) return
+    setResending(true)
+    try {
+      const supabase = createClient()
+      const { error: resendErr } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      })
+      if (resendErr) {
+        console.error('[login] resend failed:', resendErr.status, resendErr.message)
+        setError(resendErr.message)
+      } else {
+        setResent(true)
+      }
+    } catch (err) {
+      console.error('[login] Unexpected error resending email:', err)
+    } finally {
+      setResending(false)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password) { setError(t('login', 'err_fill_fields')); return }
     setLoading(true)
     setError('')
+    setUnconfirmed(false)
+    setResent(false)
     try {
       const supabase = createClient()
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) {
+        console.error('[login] signInWithPassword failed:', signInError.status, signInError.code, signInError.message)
         const msg = signInError.message
-        if (msg.toLowerCase().includes('not confirmed') || msg.toLowerCase().includes('email not confirmed')) {
+        if (signInError.code === 'email_not_confirmed' || msg.toLowerCase().includes('not confirmed')) {
           setError(t('login', 'err_not_confirmed'))
+          setUnconfirmed(true)
         } else if (msg.toLowerCase().includes('invalid login credentials')) {
           setError(t('login', 'err_invalid'))
         } else {
@@ -38,9 +85,12 @@ export default function LoginPage() {
         return
       }
       if (data?.session) {
+        // Supabase's signInWithPassword only ever returns a session for a
+        // confirmed user — data.session existing IS the confirmation check.
         router.replace('/home')
       }
-    } catch {
+    } catch (err) {
+      console.error('[login] Unexpected error during sign-in:', err)
       setError(t('login', 'err_generic'))
       setLoading(false)
     }
@@ -69,6 +119,21 @@ export default function LoginPage() {
             style={{ background: '#fff0f0', color: '#d32f2f', border: '1px solid #ffcdd2' }}>
             {error}
           </div>
+        )}
+
+        {unconfirmed && email && (
+          resent ? (
+            <div className="mb-4 px-4 py-3 rounded-xl text-sm"
+              style={{ background: '#e8f5e9', color: '#2e7d32' }}>
+              {t('login', 'resent')}
+            </div>
+          ) : (
+            <button type="button" onClick={handleResend} disabled={resending}
+              className="w-full py-3 rounded-full font-bold text-sm mb-4"
+              style={{ background: '#fce4ec', color: '#e91e8c', cursor: resending ? 'not-allowed' : 'pointer' }}>
+              {resending ? t('login', 'resending') : t('login', 'resend_verify')}
+            </button>
+          )
         )}
 
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -152,5 +217,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }
