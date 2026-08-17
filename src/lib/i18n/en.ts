@@ -2,6 +2,12 @@ export const en = {
   nav: {
     home: 'Home', tailors: 'Tailors', chat: 'Chat', bag: 'Bag', profile: 'Profile',
   },
+  auth: {
+    verifying: 'Verifying your email...', please_wait: 'This will only take a moment.',
+    verified_title: 'Email verified!', verified_sub: 'Your account is confirmed. Redirecting you to log in...',
+    failed_title: 'Verification failed', failed_sub: 'That link is invalid or has expired. Please try logging in or request a new link.',
+    back_signin: 'Back to Login',
+  },
   common: {
     loading: 'Loading...', save: 'Save', cancel: 'Cancel', back: 'Back', done: 'Done',
     edit: 'Edit', delete: 'Delete', yes: 'Yes', no: 'No', search: 'Search',
