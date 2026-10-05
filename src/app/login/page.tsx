@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, EyeOff, Scissors } from 'lucide-react'
+import { Eye, EyeOff, Scissors, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/context/LanguageContext'
 import LanguageSelector from '@/components/LanguageSelector'
@@ -20,6 +20,9 @@ function LoginForm() {
   const [unconfirmed, setUnconfirmed] = useState(false)
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
+  const [code, setCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
 
   // Surface errors forwarded from /auth/callback (e.g. an expired or
   // already-used verification link) instead of silently landing on a plain
@@ -57,6 +60,34 @@ function LoginForm() {
       console.error('[login] Unexpected error resending email:', err)
     } finally {
       setResending(false)
+    }
+  }
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (code.trim().length !== 6) { setVerifyError(t('login', 'err_code_length')); return }
+    setVerifying(true)
+    setVerifyError('')
+    try {
+      const supabase = createClient()
+      const { data, error: verifyErr } = await supabase.auth.verifyOtp({
+        email,
+        token: code.trim(),
+        type: 'signup',
+      })
+      if (verifyErr) {
+        console.error('[login] verifyOtp failed:', verifyErr.status, verifyErr.message)
+        setVerifyError(verifyErr.message)
+        setVerifying(false)
+        return
+      }
+      if (data.session) {
+        router.replace('/home')
+      }
+    } catch (err) {
+      console.error('[login] Unexpected error verifying code:', err)
+      setVerifyError(t('login', 'err_generic'))
+      setVerifying(false)
     }
   }
 
@@ -122,18 +153,48 @@ function LoginForm() {
         )}
 
         {unconfirmed && email && (
-          resent ? (
-            <div className="mb-4 px-4 py-3 rounded-xl text-sm"
-              style={{ background: '#e8f5e9', color: '#2e7d32' }}>
-              {t('login', 'resent')}
-            </div>
-          ) : (
-            <button type="button" onClick={handleResend} disabled={resending}
-              className="w-full py-3 rounded-full font-bold text-sm mb-4"
-              style={{ background: '#fce4ec', color: '#e91e8c', cursor: resending ? 'not-allowed' : 'pointer' }}>
-              {resending ? t('login', 'resending') : t('login', 'resend_verify')}
-            </button>
-          )
+          <div className="mb-4">
+            {resent ? (
+              <div className="mb-3 px-4 py-3 rounded-xl text-sm"
+                style={{ background: '#e8f5e9', color: '#2e7d32' }}>
+                {t('login', 'resent')}
+              </div>
+            ) : (
+              <button type="button" onClick={handleResend} disabled={resending}
+                className="w-full py-3 rounded-full font-bold text-sm mb-3"
+                style={{ background: '#fce4ec', color: '#e91e8c', cursor: resending ? 'not-allowed' : 'pointer' }}>
+                {resending ? t('login', 'resending') : t('login', 'resend_verify')}
+              </button>
+            )}
+
+            <form onSubmit={handleVerifyCode}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6 }}>
+                {t('login', 'verify_code_label')}
+              </label>
+              <div className="relative mb-3">
+                <input type="text" inputMode="numeric" maxLength={6} value={code}
+                  onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder={t('login', 'verify_code_placeholder')}
+                  className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all text-center"
+                  style={{ border: '1.5px solid #e8e8e8', background: '#fafafa', fontSize: 15, letterSpacing: 6, fontWeight: 700 }}
+                  onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
+                <ShieldCheck size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color="#9e9e9e" />
+              </div>
+
+              {verifyError && (
+                <div className="mb-3 px-4 py-3 rounded-xl text-sm"
+                  style={{ background: '#fff0f0', color: '#d32f2f', border: '1px solid #ffcdd2' }}>
+                  {verifyError}
+                </div>
+              )}
+
+              <button type="submit" disabled={verifying}
+                className="w-full py-3.5 rounded-full text-white font-bold text-sm"
+                style={{ background: verifying ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
+                {verifying ? t('login', 'verifying_code') : t('login', 'verify_btn')}
+              </button>
+            </form>
+          </div>
         )}
 
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -182,9 +243,9 @@ function LoginForm() {
           </div>
 
           <div className="text-right">
-            <button type="button" style={{ fontSize: 13, color: '#e91e8c', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer' }}>
+            <Link href="/forgot-password" style={{ fontSize: 13, color: '#e91e8c', fontWeight: 600 }}>
               {t('login', 'forgot')}
-            </button>
+            </Link>
           </div>
 
           <button

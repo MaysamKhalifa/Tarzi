@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Eye, EyeOff, Scissors, User, Phone, Mail, CheckCircle, RefreshCw } from 'lucide-react'
+import { Eye, EyeOff, Scissors, User, Phone, Mail, CheckCircle, RefreshCw, ShieldCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/context/LanguageContext'
 import LanguageSelector from '@/components/LanguageSelector'
@@ -20,6 +20,9 @@ export default function SignupPage() {
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
   const [resendError, setResendError] = useState('')
+  const [code, setCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,14 +49,13 @@ export default function SignupPage() {
         return
       }
 
-      if (data.user && form.phone) {
-        await supabase.from('profiles').update({ phone: form.phone }).eq('id', data.user.id)
-      }
-
       if (data.session) {
         // Supabase Auth has "Confirm email" disabled for this project, so no
         // verification email is sent by design — the user is signed in immediately.
         console.warn('[signup] Session returned on signUp — email confirmation is disabled in Supabase Auth settings, no verification email was sent.')
+        if (data.user && form.phone) {
+          await supabase.from('profiles').update({ phone: form.phone }).eq('id', data.user.id)
+        }
         router.replace('/home')
       } else {
         // Email confirmation required — Supabase should have queued the email.
@@ -66,6 +68,35 @@ export default function SignupPage() {
       setError('Something went wrong. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (code.trim().length !== 6) { setVerifyError(t('signup', 'err_code_length')); return }
+    setVerifying(true)
+    setVerifyError('')
+    try {
+      const supabase = createClient()
+      const { data, error: verifyErr } = await supabase.auth.verifyOtp({
+        email: sentTo,
+        token: code.trim(),
+        type: 'signup',
+      })
+      if (verifyErr) {
+        console.error('[signup] verifyOtp failed:', verifyErr.status, verifyErr.message)
+        setVerifyError(verifyErr.message)
+        setVerifying(false)
+        return
+      }
+      if (data.user && form.phone) {
+        await supabase.from('profiles').update({ phone: form.phone }).eq('id', data.user.id)
+      }
+      router.replace('/home')
+    } catch (err) {
+      console.error('[signup] Unexpected error verifying code:', err)
+      setVerifyError('Something went wrong. Please try again.')
+      setVerifying(false)
     }
   }
 
@@ -115,6 +146,34 @@ export default function SignupPage() {
         <p style={{ color: '#9e9e9e', fontSize: 13, lineHeight: 1.7, marginBottom: 24 }}>
           {t('signup', 'verify_check')}
         </p>
+
+        <form onSubmit={handleVerifyCode} className="w-full">
+          <label style={{ fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6, textAlign: 'left' }}>
+            {t('signup', 'verify_code_label')}
+          </label>
+          <div className="relative mb-3">
+            <input type="text" inputMode="numeric" maxLength={6} value={code}
+              onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+              placeholder={t('signup', 'verify_code_placeholder')}
+              className="w-full px-4 py-3.5 rounded-xl pl-11 outline-none transition-all text-center"
+              style={{ ...InputStyle, letterSpacing: 6, fontWeight: 700 }}
+              onFocus={e => e.target.style.borderColor = '#e91e8c'} onBlur={e => e.target.style.borderColor = '#e8e8e8'} />
+            <ShieldCheck size={16} className="absolute left-4 top-1/2 -translate-y-1/2" color="#9e9e9e" />
+          </div>
+
+          {verifyError && (
+            <div className="w-full mb-3 px-4 py-3 rounded-xl text-sm text-left"
+              style={{ background: '#fff5f5', border: '1px solid #fecaca', color: '#dc2626' }}>
+              {verifyError}
+            </div>
+          )}
+
+          <button type="submit" disabled={verifying}
+            className="w-full py-4 rounded-full text-white font-bold text-base mb-3"
+            style={{ background: verifying ? '#f9a0c8' : 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)', boxShadow: '0 4px 15px rgba(233,30,140,0.3)' }}>
+            {verifying ? t('signup', 'verifying_code') : t('signup', 'verify_btn')}
+          </button>
+        </form>
 
         {resent && (
           <div className="w-full flex items-center gap-2 mb-4 px-4 py-3 rounded-xl"
