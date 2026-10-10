@@ -38,6 +38,7 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     if (!password || !confirmPassword) { setError(t('reset_password', 'err_required')); return }
     if (password.length < 8) { setError(t('reset_password', 'err_length')); return }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9])/.test(password)) { setError(t('reset_password', 'err_weak')); return }
     if (password !== confirmPassword) { setError(t('reset_password', 'err_match')); return }
     setSaving(true)
     setError('')
@@ -137,6 +138,7 @@ export default function ResetPasswordPage() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <p style={{ fontSize: 11, color: '#9e9e9e', marginTop: 4 }}>{t('reset_password', 'password_hint')}</p>
           </div>
 
           <div>
