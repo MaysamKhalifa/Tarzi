@@ -94,6 +94,7 @@ export const en = {
     found: 'tailors found', all: 'All', alterations: 'Alterations',
     from_scratch: 'From Scratch', upcycling: 'Upcycling',
     no_results: 'No tailors found', no_results_sub: 'Try a different search',
+    empty_title: 'No tailors available yet', empty_desc: 'Tailors will appear here once approved by an admin',
   },
   tailor_profile: {
     experience: 'Experience', reviews: 'Reviews', status: 'Status',
@@ -183,6 +184,7 @@ export const en = {
     sign_in_title: 'Sign in to view chats', log_in: 'Log In', browse_services: 'Browse Services',
     pending_tailor: 'Pending tailor',
     just_now: 'Just now', min_ago: '{n}m ago', hr_ago: '{n}h ago', day_ago: '{n}d ago',
+    send_failed: 'Message could not be sent. Please try again.',
   },
   measurements: {
     title: 'My Measurements',
