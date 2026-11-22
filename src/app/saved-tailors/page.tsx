@@ -18,6 +18,8 @@ interface SavedTailorProfile {
   is_available: boolean
 }
 
+const SPECIALTY_KEYS = ['alterations', 'from_scratch', 'upcycling'] as const
+
 export default function SavedTailorsPage() {
   const { user, loading: authLoading } = useApp()
   const { t, isRTL } = useLanguage()
@@ -47,7 +49,7 @@ export default function SavedTailorsPage() {
 
         // 2. Load real tailor profiles by ID
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('public_tailor_directory')
           .select('id, full_name, shop_name, avatar_url, city, area, specialties, availability')
           .in('id', ids)
 
@@ -74,6 +76,9 @@ export default function SavedTailorsPage() {
 
     fetchSaved()
   }, [user?.id, authLoading])
+
+  const translateSpecialty = (value: string): string =>
+    (SPECIALTY_KEYS as readonly string[]).includes(value) ? t('tailors', value as typeof SPECIALTY_KEYS[number]) : value
 
   const handleRemove = async (tailorId: string) => {
     if (!user) return
@@ -166,7 +171,7 @@ export default function SavedTailorsPage() {
                       {tailor.specialties.slice(0, 2).map(s => (
                         <span key={s}
                           style={{ fontSize: 10, background: '#fce4ec', color: '#e91e8c', padding: '2px 8px', borderRadius: 50, fontWeight: 500 }}>
-                          {s}
+                          {translateSpecialty(s)}
                         </span>
                       ))}
                       <span

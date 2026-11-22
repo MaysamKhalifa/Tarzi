@@ -3,11 +3,12 @@
 import { use, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { MapPin, Clock, Phone, Heart, ChevronLeft, Scissors, Check, MessageCircle, Globe, Images } from 'lucide-react'
+import { MapPin, Clock, Phone, Heart, ChevronLeft, Scissors, Check, MessageCircle, Globe, Images, MessageSquare } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useApp } from '@/lib/context/AppContext'
 import { useLanguage } from '@/lib/context/LanguageContext'
-import type { PortfolioItem } from '@/types/database'
+import StarRating from '@/components/ui/StarRating'
+import type { PortfolioItem, TailorReview } from '@/types/database'
 
 interface TailorProfile {
   id: string
@@ -34,9 +35,10 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
   const { t: tl, isRTL } = useLanguage()
   const [saved, setSaved] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'about' | 'portfolio'>('about')
+  const [activeTab, setActiveTab] = useState<'about' | 'portfolio' | 'reviews'>('about')
   const [tailor, setTailor] = useState<TailorProfile | null>(null)
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([])
+  const [reviews, setReviews] = useState<TailorReview[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedImage, setExpandedImage] = useState<string | null>(null)
 
@@ -46,19 +48,24 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
 
     Promise.all([
       supabase
-        .from('profiles')
-        .select('id, full_name, shop_name, shop_address, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language, phone')
+        .from('public_tailor_directory')
+        .select('id, full_name, shop_name, shop_address, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
         .eq('id', id)
-        .eq('role', 'tailor')
         .maybeSingle(),
       supabase
         .from('tailor_portfolio')
         .select('*')
         .eq('tailor_id', id)
         .order('created_at', { ascending: false }),
-    ]).then(([profileResult, portfolioResult]) => {
+      supabase
+        .from('tailor_reviews')
+        .select('*')
+        .eq('tailor_id', id)
+        .order('created_at', { ascending: false }),
+    ]).then(([profileResult, portfolioResult, reviewsResult]) => {
       if (profileResult.data) setTailor(profileResult.data as TailorProfile)
       if (portfolioResult.data) setPortfolio(portfolioResult.data as PortfolioItem[])
+      if (reviewsResult.data) setReviews(reviewsResult.data as TailorReview[])
       setLoading(false)
     })
   }, [id])
@@ -130,6 +137,17 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
   const displayName = tailor.shop_name || tailor.full_name || 'Unknown Tailor'
   const displayLocation = [tailor.area, tailor.city].filter(Boolean).join(', ')
   const expertise = tailor.specialties || (tailor.specialty ? [tailor.specialty] : [])
+  const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0
+
+  const SPECIALTY_KEYS = ['alterations', 'from_scratch', 'upcycling'] as const
+  const translateSpecialty = (value: string): string =>
+    (SPECIALTY_KEYS as readonly string[]).includes(value) ? tl('tailors', value as typeof SPECIALTY_KEYS[number]) : value
+
+  const LANG_LABEL_KEYS = {
+    en: 'lang_en', ar: 'lang_ar', ur: 'lang_ur', hi: 'lang_hi', fr: 'lang_fr', tl: 'lang_tl',
+  } as const
+  const translateLanguage = (code: string): string =>
+    code in LANG_LABEL_KEYS ? tl('common', LANG_LABEL_KEYS[code as keyof typeof LANG_LABEL_KEYS]) : code
 
   return (
     <div className="min-h-dvh bg-white pb-24" dir={isRTL ? 'rtl' : 'ltr'}>
@@ -195,8 +213,8 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
               value: tailor.years_exp != null ? `${tailor.years_exp} ${tl('common', 'yrs_exp')}` : '—',
             },
             {
-              label: tl('tailor_profile', 'portfolio'),
-              value: portfolio.length.toString(),
+              label: tl('tailor_profile', 'rating_label'),
+              value: avgRating > 0 ? `${avgRating.toFixed(1)} ★` : tl('tailor_profile', 'no_rating_yet'),
             },
             {
               label: tl('tailor_profile', 'status'),
@@ -212,7 +230,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
 
         {/* Tabs */}
         <div className="flex gap-0 p-1 rounded-2xl" style={{ background: '#f5f5f5' }}>
-          {(['about', 'portfolio'] as const).map(tab => (
+          {(['about', 'portfolio', 'reviews'] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all"
               style={{
@@ -220,13 +238,26 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
                 color: activeTab === tab ? '#e91e8c' : '#9e9e9e',
                 boxShadow: activeTab === tab ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
               }}>
-              {tab === 'about' ? tl('tailor_profile', 'about') : `${tl('tailor_profile', 'portfolio') || 'Portfolio'} (${portfolio.length})`}
+              {tab === 'about'
+                ? tl('tailor_profile', 'about')
+                : tab === 'portfolio'
+                ? `${tl('tailor_profile', 'portfolio')} (${portfolio.length})`
+                : `${tl('tailor_profile', 'reviews')} (${reviews.length})`}
             </button>
           ))}
         </div>
 
         {activeTab === 'about' ? (
           <>
+            {/* Rating summary */}
+            {reviews.length > 0 && (
+              <div className="flex items-center gap-2 p-4 rounded-2xl" style={{ background: '#fff9fb' }}>
+                <StarRating value={avgRating} size={18} />
+                <p style={{ fontSize: 13, color: '#555' }}>
+                  {avgRating.toFixed(1)} · {reviews.length} {tl('tailor_profile', 'reviews').toLowerCase()}
+                </p>
+              </div>
+            )}
             {/* Bio */}
             {tailor.bio && (
               <div className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
@@ -268,7 +299,7 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
                   {tailor.languages.map(lang => (
                     <span key={lang} className="px-3 py-1.5 rounded-xl"
                       style={{ background: '#e3f2fd', fontSize: 12, color: '#1565c0', fontWeight: 600 }}>
-                      {lang}
+                      {translateLanguage(lang)}
                     </span>
                   ))}
                 </div>
@@ -283,14 +314,14 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
                   {expertise.map((e, i) => (
                     <span key={i} className="flex items-center gap-1 px-3 py-1.5 rounded-xl"
                       style={{ background: '#fce4ec', fontSize: 12, color: '#e91e8c', fontWeight: 600 }}>
-                      <Check size={11} /> {e}
+                      <Check size={11} /> {translateSpecialty(e)}
                     </span>
                   ))}
                 </div>
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === 'portfolio' ? (
           /* Portfolio tab */
           <div>
             {portfolio.length > 0 ? (
@@ -327,6 +358,35 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
               <div className="text-center py-12">
                 <Images size={40} color="#ddd" className="mx-auto mb-3" />
                 <p style={{ color: '#9e9e9e', fontSize: 14 }}>{tl('tailor_profile', 'no_portfolio')}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Reviews tab */
+          <div className="flex flex-col gap-3">
+            {reviews.length > 0 ? (
+              reviews.map(review => (
+                <div key={review.id} className="p-4 rounded-2xl" style={{ background: '#f9f9f9' }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ background: '#fce4ec', color: '#e91e8c', fontSize: 12, fontWeight: 700 }}>
+                        {review.user_name.charAt(0).toUpperCase()}
+                      </div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{review.user_name}</p>
+                    </div>
+                    <StarRating value={review.rating} size={13} />
+                  </div>
+                  <p style={{ fontSize: 13, color: '#555', lineHeight: 1.5 }}>{review.comment}</p>
+                  <p style={{ fontSize: 11, color: '#bbb', marginTop: 6 }}>
+                    {new Date(review.created_at).toLocaleDateString('en-AE', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-12">
+                <MessageSquare size={40} color="#ddd" className="mx-auto mb-3" />
+                <p style={{ color: '#9e9e9e', fontSize: 14 }}>{tl('tailor_profile', 'no_reviews')}</p>
               </div>
             )}
           </div>
