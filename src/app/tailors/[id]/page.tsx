@@ -46,10 +46,9 @@ export default function TailorProfilePage({ params }: { params: Promise<{ id: st
 
     Promise.all([
       supabase
-        .from('profiles')
-        .select('id, full_name, shop_name, shop_address, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language, phone')
+        .from('public_tailor_directory')
+        .select('id, full_name, shop_name, shop_address, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
         .eq('id', id)
-        .eq('role', 'tailor')
         .maybeSingle(),
       supabase
         .from('tailor_portfolio')

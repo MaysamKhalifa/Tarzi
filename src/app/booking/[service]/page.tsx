@@ -126,17 +126,14 @@ function BookingContent({ serviceParam }: { serviceParam: string }) {
 
     // Try approved tailors first; fall back to all tailors if none are approved yet
     supabase
-      .from('profiles')
+      .from('public_tailor_directory')
       .select('id, full_name, shop_name, area, city, avatar_url')
-      .eq('role', 'tailor')
-      .eq('is_approved', true)
       .then(({ data, error }) => {
         if (error || !data || data.length === 0) {
           // Fallback: show all tailors so booking is never blocked
           return supabase
-            .from('profiles')
+            .from('public_tailor_directory')
             .select('id, full_name, shop_name, area, city, avatar_url')
-            .eq('role', 'tailor')
             .then(({ data: fallback }) => {
               setRealTailors((fallback as RealTailor[]) || [])
               setTailorsLoading(false)

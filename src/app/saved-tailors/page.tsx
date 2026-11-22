@@ -47,7 +47,7 @@ export default function SavedTailorsPage() {
 
         // 2. Load real tailor profiles by ID
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('public_tailor_directory')
           .select('id, full_name, shop_name, avatar_url, city, area, specialties, availability')
           .in('id', ids)
 

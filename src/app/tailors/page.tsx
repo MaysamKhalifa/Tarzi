@@ -93,10 +93,8 @@ export default function TailorsPage() {
 
         // First try: approved tailors only
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_tailor_directory')
           .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
-          .eq('role', 'tailor')
-          .eq('is_approved', true)
 
         if (cancelled) return
 
@@ -105,9 +103,8 @@ export default function TailorsPage() {
           // If is_approved column doesn't exist yet, fall back to all tailors
           if (error.message.includes('is_approved') || error.code === '42703') {
             const { data: fallback, error: fallbackError } = await supabase
-              .from('profiles')
+              .from('public_tailor_directory')
               .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
-              .eq('role', 'tailor')
             if (!cancelled) {
               if (!fallbackError && fallback) setTailors((fallback as TailorRow[]).map(mapToDisplay))
               else setFetchError(fallbackError?.message || 'Could not load tailors')
