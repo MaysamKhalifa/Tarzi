@@ -13,9 +13,11 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
   const { user, profile } = useApp()
   const { t, isRTL } = useLanguage()
   const [order, setOrder] = useState<Order | null>(null)
+  const [tailorPhone, setTailorPhone] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
@@ -25,7 +27,13 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
 
     // Fetch order
     supabase.from('orders').select('*').eq('id', orderId).eq('user_id', user.id).single()
-      .then(({ data }) => { setOrder(data); })
+      .then(({ data }) => {
+        setOrder(data)
+        if (data?.tailor_id) {
+          supabase.rpc('get_order_contact', { p_order_id: orderId }).single()
+            .then(({ data: contact }) => setTailorPhone((contact as { phone: string | null } | null)?.phone || null))
+        }
+      })
 
     // Fetch existing messages
     supabase.from('chat_messages').select('*').eq('order_id', orderId)
@@ -58,6 +66,7 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
   const sendMessage = async () => {
     if (!input.trim() || !user || sending) return
     setSending(true)
+    setSendError('')
     const msg = input.trim()
     setInput('')
 
@@ -69,7 +78,11 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
       message: msg,
     })
 
-    if (error) setInput(msg)
+    if (error) {
+      console.error('Chat send error:', error)
+      setInput(msg)
+      setSendError(t('chat', 'send_failed'))
+    }
     setSending(false)
   }
 
@@ -116,10 +129,12 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
           subtitle={order ? `${order.order_number} • ${order.garment_type}` : t('common', 'loading')}
           transparent
           rightElement={
-            <a href={`tel:+971500000000`}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/20">
-              <Phone size={18} color="white" />
-            </a>
+            tailorPhone ? (
+              <a href={`tel:${tailorPhone}`}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/20">
+                <Phone size={18} color="white" />
+              </a>
+            ) : null
           }
         />
       </div>
@@ -191,8 +206,15 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
       </div>
 
       {/* Input area */}
-      <div className="px-4 py-3 bg-white flex items-end gap-3"
+      <div className="px-4 py-3 bg-white flex flex-col gap-2"
         style={{ borderTop: '1px solid #f0f0f0', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }}>
+        {sendError && (
+          <div className="px-3 py-2 rounded-xl text-xs"
+            style={{ background: '#fff0f0', color: '#d32f2f', border: '1px solid #ffcdd2' }}>
+            ⚠️ {sendError}
+          </div>
+        )}
+        <div className="flex items-end gap-3">
         <div className="flex-1 relative">
           <textarea
             value={input}
@@ -223,6 +245,7 @@ export default function ChatPage({ params }: { params: Promise<{ orderId: string
           }}>
           <Send size={18} color={input.trim() ? 'white' : '#9e9e9e'} />
         </button>
+        </div>
       </div>
     </div>
   )

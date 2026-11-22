@@ -28,6 +28,7 @@ export default function SignupPage() {
     e.preventDefault()
     if (!form.fullName || !form.email || !form.password) { setError(t('signup', 'err_required')); return }
     if (form.password.length < 8) { setError(t('signup', 'err_length')); return }
+    if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9])/.test(form.password)) { setError(t('signup', 'err_weak')); return }
     if (form.password !== form.confirmPassword) { setError(t('signup', 'err_match')); return }
 
     setLoading(true)
@@ -276,6 +277,7 @@ export default function SignupPage() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            <p style={{ fontSize: 11, color: '#9e9e9e', marginTop: 4 }}>{t('signup', 'password_hint')}</p>
           </div>
 
           <div>

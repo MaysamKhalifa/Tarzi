@@ -10,6 +10,8 @@ import { useLanguage } from '@/lib/context/LanguageContext'
 
 type ServiceFilter = 'all' | 'alterations' | 'from_scratch' | 'upcycling'
 
+const SPECIALTY_KEYS = ['alterations', 'from_scratch', 'upcycling'] as const
+
 interface TailorRow {
   id: string
   full_name: string | null
@@ -93,10 +95,8 @@ export default function TailorsPage() {
 
         // First try: approved tailors only
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_tailor_directory')
           .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
-          .eq('role', 'tailor')
-          .eq('is_approved', true)
 
         if (cancelled) return
 
@@ -105,9 +105,8 @@ export default function TailorsPage() {
           // If is_approved column doesn't exist yet, fall back to all tailors
           if (error.message.includes('is_approved') || error.code === '42703') {
             const { data: fallback, error: fallbackError } = await supabase
-              .from('profiles')
+              .from('public_tailor_directory')
               .select('id, full_name, shop_name, avatar_url, city, area, specialties, languages, availability, bio, years_exp, specialty, preferred_language')
-              .eq('role', 'tailor')
             if (!cancelled) {
               if (!fallbackError && fallback) setTailors((fallback as TailorRow[]).map(mapToDisplay))
               else setFetchError(fallbackError?.message || 'Could not load tailors')
@@ -186,6 +185,9 @@ export default function TailorsPage() {
     { key: 'from_scratch', label: t('tailors', 'from_scratch') },
     { key: 'upcycling', label: t('tailors', 'upcycling') },
   ]
+
+  const translateSpecialty = (value: string): string =>
+    (SPECIALTY_KEYS as readonly string[]).includes(value) ? t('tailors', value as typeof SPECIALTY_KEYS[number]) : value
 
   return (
     <div className="min-h-dvh bg-white pb-24">
@@ -293,12 +295,12 @@ export default function TailorsPage() {
                     <div className="flex flex-wrap gap-1 mt-2">
                       {tailor.specialties.slice(0, 3).map(s => (
                         <span key={s} style={{ fontSize: 10, background: '#fce4ec', color: '#e91e8c', padding: '2px 8px', borderRadius: 50, fontWeight: 500 }}>
-                          {s}
+                          {translateSpecialty(s)}
                         </span>
                       ))}
                       {tailor.expertise.slice(0, 2).map(e => (
                         <span key={e} style={{ fontSize: 10, background: '#fce4ec', color: '#e91e8c', padding: '2px 8px', borderRadius: 50, fontWeight: 500 }}>
-                          {e}
+                          {translateSpecialty(e)}
                         </span>
                       ))}
                     </div>
@@ -325,11 +327,11 @@ export default function TailorsPage() {
               <div className="text-center py-16">
                 <Scissors size={40} color="#ddd" className="mx-auto mb-3" />
                 <p style={{ color: '#9e9e9e', fontSize: 14 }}>
-                  {tailors.length === 0 ? 'No tailors available yet' : t('tailors', 'no_results')}
+                  {tailors.length === 0 ? t('tailors', 'empty_title') : t('tailors', 'no_results')}
                 </p>
                 <p style={{ color: '#bbb', fontSize: 12, marginTop: 4 }}>
                   {tailors.length === 0
-                    ? 'Tailors will appear here once approved by an admin'
+                    ? t('tailors', 'empty_desc')
                     : t('tailors', 'no_results_sub')}
                 </p>
               </div>

@@ -23,16 +23,13 @@ export default function MeasurementByTailorPage() {
   useEffect(() => {
     const supabase = createClient()
     supabase
-      .from('profiles')
+      .from('public_tailor_directory')
       .select('id, full_name, shop_name, area, city, avatar_url')
-      .eq('role', 'tailor')
-      .eq('is_approved', true)
       .then(({ data, error }) => {
         if (error || !data || data.length === 0) {
           return supabase
-            .from('profiles')
+            .from('public_tailor_directory')
             .select('id, full_name, shop_name, area, city, avatar_url')
-            .eq('role', 'tailor')
             .then(({ data: fallback }) => {
               setTailors((fallback as RealTailor[]) || [])
               setTailorsLoading(false)

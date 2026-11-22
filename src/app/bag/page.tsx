@@ -110,10 +110,9 @@ export default function BagPage() {
         let verifiedTailorId: string | null = null
         if (uuidCandidate) {
           const { data: tailorRow } = await supabase
-            .from('profiles')
+            .from('public_tailor_directory')
             .select('id')
             .eq('id', uuidCandidate)
-            .eq('role', 'tailor')
             .maybeSingle()
           verifiedTailorId = tailorRow?.id ?? null
           if (!tailorRow) {
