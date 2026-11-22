@@ -13,6 +13,8 @@ export const en = {
     edit: 'Edit', delete: 'Delete', yes: 'Yes', no: 'No', search: 'Search',
     required: 'Required', optional: 'Optional', available: 'Available', busy: 'Busy',
     km: 'km', m: 'm', yrs_exp: 'yrs exp', aed: 'AED',
+    lang_en: 'English', lang_ar: 'Arabic', lang_ur: 'Urdu',
+    lang_hi: 'Hindi', lang_fr: 'French', lang_tl: 'Filipino',
   },
   login: {
     title: 'Welcome back!', subtitle: 'Sign in to your account',
