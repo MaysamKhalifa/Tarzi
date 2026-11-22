@@ -103,6 +103,7 @@ export const en = {
     portfolio: 'Portfolio', not_found: 'Tailor not found',
     shop_address: 'Shop Address', languages: 'Languages', previous_work: 'Previous Work',
     no_portfolio: 'No portfolio images yet',
+    rating_label: 'Rating', no_rating_yet: '—',
   },
   booking: {
     starting_from: 'Starting from',
