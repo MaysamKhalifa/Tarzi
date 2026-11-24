@@ -6,13 +6,33 @@ import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, Order } from '@/types/database'
 
-// Set while a password-recovery session is active (from the "forgot password"
-// email link) and cleared once the user actually sets a new password on
-// /reset-password. While set, the user is bounced back there from any other
-// page -- a recovery session is a real, valid session, so without this guard
-// the user could skip straight past the "set new password" screen and use
-// the rest of the app on the strength of a one-time recovery link alone.
+// Set (as a timestamp) while a password-recovery session is active (from the
+// "forgot password" email link) and cleared once the user actually sets a
+// new password on /reset-password, signs out, or the flag goes stale. While
+// set, the user is bounced back to /reset-password from any other APP page
+// -- a recovery session is a real, valid session, so without this guard the
+// user could skip straight past the "set new password" screen and use the
+// rest of the app on the strength of a one-time recovery link alone.
+//
+// It expires after RECOVERY_FLAG_MAX_AGE_MS so an earlier, abandoned recovery
+// attempt in the same browser tab can't permanently trap later navigation
+// (e.g. clicking "Login page" from the forgot-password confirmation screen).
+// /login and /forgot-password are always reachable regardless of the flag --
+// only /reset-password itself is the mandatory stop.
 const RECOVERY_FLAG_KEY = 'tarzi_pending_recovery'
+const RECOVERY_FLAG_MAX_AGE_MS = 30 * 60 * 1000 // 30 minutes
+const RECOVERY_ALWAYS_ALLOWED_PATHS = ['/reset-password', '/login', '/forgot-password']
+
+function isRecoveryFlagActive(): boolean {
+  const raw = sessionStorage.getItem(RECOVERY_FLAG_KEY)
+  if (!raw) return false
+  const setAt = Number(raw)
+  if (!setAt || Date.now() - setAt > RECOVERY_FLAG_MAX_AGE_MS) {
+    sessionStorage.removeItem(RECOVERY_FLAG_KEY)
+    return false
+  }
+  return true
+}
 
 interface CartItem {
   tailorId: string
@@ -118,8 +138,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // than /reset-password) — catch it globally here rather than relying
         // on any single page to notice.
         if (event === 'PASSWORD_RECOVERY') {
-          sessionStorage.setItem(RECOVERY_FLAG_KEY, '1')
+          sessionStorage.setItem(RECOVERY_FLAG_KEY, String(Date.now()))
           router.replace('/reset-password')
+        }
+        if (event === 'SIGNED_OUT') {
+          sessionStorage.removeItem(RECOVERY_FLAG_KEY)
         }
         const u = session?.user ?? null
         setUser(u)
@@ -142,9 +165,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Keep enforcing the recovery flag across navigation -- a recovery session
   // doesn't stop being valid just because the user clicked somewhere else.
+  // Login/forgot-password stay reachable regardless, and the flag expires so
+  // an abandoned recovery attempt can't trap navigation indefinitely.
   useEffect(() => {
-    if (pathname === '/reset-password') return
-    if (sessionStorage.getItem(RECOVERY_FLAG_KEY) === '1') {
+    if (RECOVERY_ALWAYS_ALLOWED_PATHS.includes(pathname)) return
+    if (isRecoveryFlagActive()) {
       router.replace('/reset-password')
     }
   }, [pathname, router])
