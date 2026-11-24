@@ -82,9 +82,17 @@ export default function AuthCallbackPage() {
           '— email_confirmed_at:', session.user.email_confirmed_at
         )
 
+        // A password-reset link must land on the "set new password" screen,
+        // not /home -- otherwise the recovery session just silently logs the
+        // user in with their OLD password still active. Recovery is signaled
+        // either by ?type=recovery (token_hash flow) or #...type=recovery
+        // (implicit/hash-token flow, this app's default).
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+        const isRecovery = otpType === 'recovery' || hashParams.get('type') === 'recovery'
+
         setStatus('success')
         await new Promise(r => setTimeout(r, 1200))
-        router.replace('/home')
+        router.replace(isRecovery ? '/reset-password' : '/home')
 
       } catch (err) {
         console.error('[auth/callback] Unexpected error:', err)

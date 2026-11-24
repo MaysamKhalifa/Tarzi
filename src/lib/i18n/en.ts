@@ -72,7 +72,7 @@ export const en = {
     err_required: 'Please fill in both fields',
     err_length: 'Password must be at least 8 characters',
     err_match: 'Passwords do not match',
-    success_title: 'Password updated!', success_sub: 'Please log in with your new password.',
+    success_title: 'Password updated!', success_sub: "You're all set — taking you to your account.",
     go_login: 'Go to Login',
     invalid_title: 'Invalid or expired link', invalid_sub: 'Please request a new password reset link.',
     request_new: 'Request New Link',

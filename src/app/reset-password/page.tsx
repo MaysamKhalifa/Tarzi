@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Scissors, CheckCircle, XCircle, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useLanguage } from '@/lib/context/LanguageContext'
 
+const RECOVERY_FLAG_KEY = 'tarzi_pending_recovery'
+
 type Status = 'loading' | 'ready' | 'invalid' | 'success'
 
 export default function ResetPasswordPage() {
+  const router = useRouter()
   const { t, isRTL } = useLanguage()
   const [status, setStatus] = useState<Status>('loading')
   const [password, setPassword] = useState('')
@@ -50,8 +54,12 @@ export default function ResetPasswordPage() {
         setSaving(false)
         return
       }
-      await supabase.auth.signOut()
+      // The user already has a valid session at this point (that's how they
+      // got here) -- stay signed in and go to the app, don't sign them out
+      // and send them back to re-enter credentials they just changed.
+      sessionStorage.removeItem(RECOVERY_FLAG_KEY)
       setStatus('success')
+      setTimeout(() => router.replace('/home'), 1500)
     } catch (err) {
       console.error('[reset-password] Unexpected error:', err)
       setError(t('reset_password', 'err_required'))
@@ -92,11 +100,7 @@ export default function ResetPasswordPage() {
           <CheckCircle size={40} color="#2e7d32" />
         </div>
         <h2 style={{ fontSize: 24, fontWeight: 800, color: '#1a1a1a', marginBottom: 10 }}>{t('reset_password', 'success_title')}</h2>
-        <p style={{ color: '#9e9e9e', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>{t('reset_password', 'success_sub')}</p>
-        <Link href="/login" className="w-full py-4 rounded-full text-white font-bold text-base block"
-          style={{ background: 'linear-gradient(135deg, #e91e8c 0%, #f06292 100%)' }}>
-          {t('reset_password', 'go_login')}
-        </Link>
+        <p style={{ color: '#9e9e9e', fontSize: 14, lineHeight: 1.7 }}>{t('reset_password', 'success_sub')}</p>
       </div>
     )
   }

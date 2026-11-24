@@ -1,9 +1,18 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import type { Profile, Order } from '@/types/database'
+
+// Set while a password-recovery session is active (from the "forgot password"
+// email link) and cleared once the user actually sets a new password on
+// /reset-password. While set, the user is bounced back there from any other
+// page -- a recovery session is a real, valid session, so without this guard
+// the user could skip straight past the "set new password" screen and use
+// the rest of the app on the strength of a one-time recovery link alone.
+const RECOVERY_FLAG_KEY = 'tarzi_pending_recovery'
 
 interface CartItem {
   tailorId: string
@@ -32,6 +41,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined)
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
@@ -100,7 +111,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Real-time auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        // A password-recovery link establishes a real, valid session via
+        // detectSessionInUrl regardless of which page it actually lands on
+        // (Supabase's redirect-URL handling can route it somewhere other
+        // than /reset-password) — catch it globally here rather than relying
+        // on any single page to notice.
+        if (event === 'PASSWORD_RECOVERY') {
+          sessionStorage.setItem(RECOVERY_FLAG_KEY, '1')
+          router.replace('/reset-password')
+        }
         const u = session?.user ?? null
         setUser(u)
         if (u) {
@@ -119,6 +139,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep enforcing the recovery flag across navigation -- a recovery session
+  // doesn't stop being valid just because the user clicked somewhere else.
+  useEffect(() => {
+    if (pathname === '/reset-password') return
+    if (sessionStorage.getItem(RECOVERY_FLAG_KEY) === '1') {
+      router.replace('/reset-password')
+    }
+  }, [pathname, router])
 
   const addToCart = (item: CartItem) => {
     const newCart = [...cart, item]
